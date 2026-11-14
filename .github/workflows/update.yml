@@ -1,0 +1,60 @@
+name: Update data and deploy
+
+on:
+  schedule:
+    - cron: "30 1 * * *"   # 07:00 IST daily
+  workflow_dispatch:
+    inputs:
+      full:
+        description: "Also refresh ASI (slow, annual data)"
+        type: boolean
+        default: false
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: update
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Fetch developments
+        if: github.event_name != 'push'
+        run: |
+          python pipeline/fetch_news.py
+          python pipeline/backfill_news.py 1
+      - name: Fetch data
+        if: github.event_name != 'push'
+        run: python pipeline/fetch_data.py ${{ inputs.full == true && '--full' || '--skip-asi' }}
+      - name: Commit refreshed data
+        if: github.event_name != 'push'
+        run: |
+          git config user.name "tracker-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add site/data
+          git diff --cached --quiet || git commit -m "Daily data refresh"
+          git push
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+  deploy:
+    needs: update
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

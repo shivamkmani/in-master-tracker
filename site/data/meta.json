@@ -1,0 +1,123 @@
+{
+ "updated": "2026-11-07T19:47+00:00",
+ "datasets": {
+  "nas": {
+   "title": "National Accounts Statistics",
+   "publisher": "MoSPI",
+   "url": "https://esankhyiki.mospi.gov.in/",
+   "frequency": "Annual and quarterly",
+   "note": "Base 2022-23. Latest years are provisional and get revised."
+  },
+  "gsdp": {
+   "title": "State Domestic Product",
+   "publisher": "MoSPI, from State DES",
+   "url": "https://esankhyiki.mospi.gov.in/",
+   "frequency": "Annual",
+   "note": "Base 2011-12, so not directly comparable with the 2022-23 national series. Assam, Haryana and Nagaland are not available through MoSPI's API."
+  },
+  "gsva": {
+   "title": "Gross State Value Added by industry",
+   "publisher": "MoSPI, from State DES",
+   "url": "https://esankhyiki.mospi.gov.in/",
+   "frequency": "Annual",
+   "note": "Base 2011-12. Converted from ₹ lakh to ₹ crore. Assam, Haryana and Nagaland are not available through MoSPI's API."
+  },
+  "cpi": {
+   "title": "Consumer Price Index",
+   "publisher": "MoSPI",
+   "url": "https://esankhyiki.mospi.gov.in/",
+   "frequency": "Monthly",
+   "note": "Base 2024, combined rural and urban."
+  },
+  "wpi": {
+   "title": "Wholesale Price Index",
+   "publisher": "DPIIT, via MoSPI",
+   "url": "https://esankhyiki.mospi.gov.in/",
+   "frequency": "Monthly",
+   "note": "Base 2022-23."
+  },
+  "iip": {
+   "title": "Index of Industrial Production",
+   "publisher": "MoSPI",
+   "url": "https://esankhyiki.mospi.gov.in/",
+   "frequency": "Monthly",
+   "note": "Base 2022-23. Growth is year on year as published."
+  },
+  "isp": {
+   "title": "Index of Service Production",
+   "publisher": "MoSPI",
+   "url": "https://esankhyiki.mospi.gov.in/",
+   "frequency": "Monthly",
+   "note": "Base 2024-25. Growth is year on year as published."
+  },
+  "plfs": {
+   "title": "Periodic Labour Force Survey",
+   "publisher": "MoSPI",
+   "url": "https://esankhyiki.mospi.gov.in/",
+   "frequency": "Annual",
+   "note": "Persons aged 15+, rural and urban combined, usual status (PS+SS), calendar year."
+  },
+  "asi": {
+   "title": "Annual Survey of Industries",
+   "publisher": "MoSPI",
+   "url": "https://esankhyiki.mospi.gov.in/",
+   "frequency": "Annual",
+   "note": "Registered factories only, NIC 2008, so it excludes small informal units. Converted from ₹ lakh to ₹ crore. Values can be withheld where few factories report."
+  },
+  "rbi_trade": {
+   "title": "India's foreign trade",
+   "publisher": "RBI, via MoSPI",
+   "url": "https://esankhyiki.mospi.gov.in/",
+   "frequency": "Monthly",
+   "note": "US$ million. MoSPI's copy of this RBI series lags; check the latest period shown."
+  },
+  "rbi_fx": {
+   "title": "Foreign exchange reserves",
+   "publisher": "RBI, via MoSPI",
+   "url": "https://esankhyiki.mospi.gov.in/",
+   "frequency": "Monthly",
+   "note": "US$ million. MoSPI's copy of this RBI series lags; check the latest period shown."
+  },
+  "rbi_commodity": {
+   "title": "Exports and imports of major commodities",
+   "publisher": "RBI, via MoSPI",
+   "url": "https://esankhyiki.mospi.gov.in/",
+   "frequency": "Annual",
+   "note": "US$ million, financial year. National only: this series has no state split."
+  }
+ },
+ "status": {
+  "National accounts": {
+   "ok": true,
+   "rows": 328
+  },
+  "State accounts": {
+   "ok": true,
+   "rows": 22196
+  },
+  "CPI": {
+   "ok": true,
+   "rows": 882
+  },
+  "IIP": {
+   "ok": true,
+   "rows": 3612
+  },
+  "WPI": {
+   "ok": true,
+   "rows": 7224
+  },
+  "ISP": {
+   "ok": true,
+   "rows": 418
+  },
+  "PLFS": {
+   "ok": true,
+   "rows": 444
+  },
+  "RBI": {
+   "ok": true,
+   "rows": 4265
+  }
+ }
+}

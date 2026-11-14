@@ -1,0 +1,441 @@
+{
+  "_comment": "Only official government bodies and trade associations belong here. Each feed is tagged with a publisher type shown on the site.",
+  "pib_regions": {
+    "3": "Delhi",
+    "1": "Mumbai",
+    "5": "Hyderabad",
+    "6": "Chennai",
+    "17": "Chandigarh",
+    "19": "Kolkata",
+    "20": "Bengaluru",
+    "21": "Bhubaneswar",
+    "22": "Ahmedabad",
+    "23": "Guwahati",
+    "24": "Thiruvananthapuram",
+    "37": "Lucknow",
+    "38": "Bhopal",
+    "39": "Jaipur",
+    "40": "Patna",
+    "45": "Vijayawada"
+  },
+  "pib_region_state": {
+    "Mumbai": "Maharashtra",
+    "Hyderabad": "Telangana",
+    "Chennai": "Tamil Nadu",
+    "Kolkata": "West Bengal",
+    "Bengaluru": "Karnataka",
+    "Bhubaneswar": "Odisha",
+    "Ahmedabad": "Gujarat",
+    "Guwahati": "Assam",
+    "Thiruvananthapuram": "Kerala",
+    "Lucknow": "Uttar Pradesh",
+    "Bhopal": "Madhya Pradesh",
+    "Jaipur": "Rajasthan",
+    "Patna": "Bihar",
+    "Ranchi": "Jharkhand",
+    "Raipur": "Chhattisgarh",
+    "Vijayawada": "Andhra Pradesh",
+    "Dehradun": "Uttarakhand"
+  },
+  "feeds": [
+    {
+      "id": "rbi",
+      "name": "Reserve Bank of India",
+      "type": "Government",
+      "scope": "National",
+      "url": "https://www.rbi.org.in/pressreleases_rss.xml",
+      "default_sectors": [
+        "macro"
+      ],
+      "require_match": false,
+      "title_only": true
+    },
+    {
+      "id": "icea",
+      "name": "India Cellular & Electronics Association",
+      "type": "Trade association",
+      "scope": "National",
+      "url": "https://www.icea.org.in/feed/",
+      "default_sectors": [
+        "electronics"
+      ],
+      "require_match": false
+    },
+    {
+      "id": "citi",
+      "name": "Confederation of Indian Textile Industry",
+      "type": "Trade association",
+      "scope": "National",
+      "url": "https://www.citiindia.org/feed/",
+      "default_sectors": [
+        "textiles"
+      ],
+      "require_match": false
+    },
+    {
+      "id": "cmai",
+      "name": "Clothing Manufacturers Association of India",
+      "type": "Trade association",
+      "scope": "National",
+      "url": "https://www.cmai.in/feed/",
+      "default_sectors": [
+        "textiles"
+      ],
+      "require_match": false
+    },
+    {
+      "id": "aepc",
+      "name": "Apparel Export Promotion Council",
+      "type": "Trade association",
+      "scope": "National",
+      "url": "https://www.aepcindia.com/rss.xml",
+      "default_sectors": [
+        "textiles"
+      ],
+      "require_match": false
+    },
+    {
+      "id": "wto",
+      "name": "World Trade Organization",
+      "type": "International body",
+      "scope": "International",
+      "url": "https://www.wto.org/library/rss/latest_news_e.xml",
+      "default_sectors": [],
+      "require_match": true
+    },
+    {
+      "id": "ustr",
+      "name": "Office of the US Trade Representative",
+      "type": "Government",
+      "scope": "International",
+      "url": "https://www.ustr.gov/rss.xml",
+      "default_sectors": [],
+      "require_match": true
+    },
+    {
+      "id": "nist",
+      "name": "US National Institute of Standards and Technology",
+      "type": "Government",
+      "scope": "International",
+      "url": "https://www.nist.gov/news-events/news/rss.xml",
+      "default_sectors": [],
+      "require_match": true
+    }
+  ],
+  "federal_register_agencies": [
+    "industry-and-security-bureau",
+    "international-trade-administration",
+    "trade-representative-office-of-united-states"
+  ],
+  "sector_keywords": {
+    "semiconductors": {
+      "strong": [
+        "semiconductor",
+        "semiconductors",
+        "semicon",
+        "india semiconductor mission",
+        "wafer",
+        "osat",
+        "atmp",
+        "chip design",
+        "chipmaking",
+        "chip manufacturing",
+        "fab unit",
+        "silicon carbide",
+        "chips act",
+        "integrated circuit",
+        "integrated circuits",
+        "microchip",
+        "microchips"
+      ],
+      "weak": [
+        "chip",
+        "chips",
+        "fab",
+        "design linked incentive"
+      ]
+    },
+    "electronics": {
+      "strong": [
+        "electronics manufacturing",
+        "electronics component",
+        "electronic components",
+        "electronics components",
+        "ecms",
+        "smartphone",
+        "smartphones",
+        "mobile phone manufacturing",
+        "mobile manufacturing",
+        "printed circuit",
+        "pcb",
+        "ems",
+        "electronic goods",
+        "electronics exports",
+        "electronics production",
+        "consumer electronics",
+        "electronics sector",
+        "electronics industry"
+      ],
+      "weak": [
+        "electronics",
+        "meity",
+        "pli",
+        "production linked incentive",
+        "display fab",
+        "laptop",
+        "laptops"
+      ]
+    },
+    "logistics": {
+      "strong": [
+        "logistics",
+        "freight",
+        "air cargo",
+        "cargo",
+        "warehousing",
+        "warehouse",
+        "gati shakti",
+        "container terminal",
+        "courier",
+        "express delivery",
+        "dedicated freight corridor",
+        "sagarmala",
+        "major port",
+        "major ports",
+        "shipping corridor",
+        "multimodal logistics",
+        "multi-modal logistics",
+        "logistics park",
+        "container cargo"
+      ],
+      "weak": [
+        "port",
+        "ports",
+        "shipping",
+        "highway",
+        "highways",
+        "railway siding",
+        "airport",
+        "customs clearance",
+        "supply chain",
+        "supply chains",
+        "containers"
+      ]
+    },
+    "textiles": {
+      "strong": [
+        "textile",
+        "textiles",
+        "apparel",
+        "garment",
+        "garments",
+        "handloom",
+        "handlooms",
+        "pm mitra",
+        "technical textiles",
+        "readymade",
+        "leather",
+        "footwear",
+        "handbag",
+        "handbags",
+        "cotton corporation",
+        "man-made fibre",
+        "man-made fiber",
+        "mmf"
+      ],
+      "weak": [
+        "cotton",
+        "yarn",
+        "fabric",
+        "fabrics",
+        "silk",
+        "jute",
+        "wool",
+        "fashion"
+      ]
+    },
+    "macro": {
+      "strong": [
+        "gdp",
+        "gross domestic product",
+        "cpi",
+        "consumer price index",
+        "wholesale price index",
+        "index of industrial production",
+        "gst collection",
+        "gst collections",
+        "merchandise exports",
+        "merchandise trade",
+        "trade deficit",
+        "foreign direct investment",
+        "fdi inflow",
+        "fdi inflows",
+        "periodic labour force survey",
+        "plfs",
+        "monetary policy",
+        "repo rate",
+        "current account",
+        "union budget"
+      ],
+      "weak": [
+        "inflation",
+        "fdi",
+        "unemployment rate"
+      ]
+    }
+  },
+  "state_aliases": {
+    "Andhra Pradesh": [
+      "andhra pradesh",
+      "visakhapatnam",
+      "vizag",
+      "tirupati",
+      "sri city",
+      "amaravati"
+    ],
+    "Assam": [
+      "assam",
+      "guwahati",
+      "jagiroad"
+    ],
+    "Bihar": [
+      "bihar",
+      "patna"
+    ],
+    "Chhattisgarh": [
+      "chhattisgarh",
+      "raipur"
+    ],
+    "Delhi": [
+      "new delhi ncr",
+      "delhi-ncr",
+      "delhi government"
+    ],
+    "Goa": [
+      "goa",
+      "mormugao"
+    ],
+    "Gujarat": [
+      "gujarat",
+      "ahmedabad",
+      "dholera",
+      "sanand",
+      "surat",
+      "kandla",
+      "mundra",
+      "vadodara",
+      "gift city"
+    ],
+    "Haryana": [
+      "haryana",
+      "gurugram",
+      "manesar",
+      "faridabad"
+    ],
+    "Himachal Pradesh": [
+      "himachal pradesh",
+      "shimla",
+      "baddi"
+    ],
+    "Jharkhand": [
+      "jharkhand",
+      "ranchi",
+      "jamshedpur"
+    ],
+    "Karnataka": [
+      "karnataka",
+      "bengaluru",
+      "bangalore",
+      "mysuru",
+      "hubballi",
+      "mangaluru",
+      "new mangalore"
+    ],
+    "Kerala": [
+      "kerala",
+      "kochi",
+      "cochin",
+      "thiruvananthapuram",
+      "vizhinjam"
+    ],
+    "Madhya Pradesh": [
+      "madhya pradesh",
+      "bhopal",
+      "indore",
+      "pithampur"
+    ],
+    "Maharashtra": [
+      "maharashtra",
+      "mumbai",
+      "pune",
+      "nagpur",
+      "navi mumbai",
+      "jnpa",
+      "nhava sheva",
+      "vadhavan"
+    ],
+    "Odisha": [
+      "odisha",
+      "bhubaneswar",
+      "paradip",
+      "paradeep"
+    ],
+    "Punjab": [
+      "punjab",
+      "ludhiana",
+      "mohali",
+      "amritsar"
+    ],
+    "Rajasthan": [
+      "rajasthan",
+      "jaipur",
+      "jodhpur",
+      "bhiwadi"
+    ],
+    "Tamil Nadu": [
+      "tamil nadu",
+      "tamilnadu",
+      "chennai",
+      "sriperumbudur",
+      "oragadam",
+      "hosur",
+      "coimbatore",
+      "tiruppur",
+      "tirupur",
+      "thoothukudi",
+      "tuticorin",
+      "kamarajar",
+      "ennore",
+      "madurai"
+    ],
+    "Telangana": [
+      "telangana",
+      "hyderabad"
+    ],
+    "Uttar Pradesh": [
+      "uttar pradesh",
+      "noida",
+      "greater noida",
+      "jewar",
+      "lucknow",
+      "kanpur",
+      "yamuna expressway"
+    ],
+    "Uttarakhand": [
+      "uttarakhand",
+      "dehradun",
+      "haridwar"
+    ],
+    "West Bengal": [
+      "west bengal",
+      "kolkata",
+      "haldia",
+      "syama prasad mookerjee port"
+    ]
+  },
+  "exclude_title_patterns": [
+    "our members",
+    "garment hangers",
+    "port call"
+  ]
+}
