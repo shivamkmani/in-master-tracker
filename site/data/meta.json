@@ -1,5 +1,5 @@
 {
- "updated": "2026-11-07T19:47+00:00",
+ "updated": "2026-11-14T07:51+00:00",
  "datasets": {
   "nas": {
    "title": "National Accounts Statistics",
@@ -97,7 +97,7 @@
   },
   "CPI": {
    "ok": true,
-   "rows": 882
+   "rows": 980
   },
   "IIP": {
    "ok": true,
