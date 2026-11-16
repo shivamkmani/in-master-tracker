@@ -20,6 +20,15 @@ h2{font-size:17px;margin:0;letter-spacing:-.005em}
 #nav a{padding:11px 11px 9px;color:var(--ink2);text-decoration:none;font-size:14px;white-space:nowrap;border-bottom:2px solid transparent}
 #nav a:hover{color:var(--ink);border-bottom-color:var(--line)}
 #nav a[aria-current=page]{color:var(--accent);font-weight:600;border-bottom-color:var(--accent)}
+.tab-btn{font:inherit;font-size:14px;color:var(--ink2);background:none;border:0;border-bottom:2px solid transparent;border-radius:0;padding:11px 11px 9px;min-height:0;white-space:nowrap;cursor:pointer}
+.tab-btn::after{content:"";display:inline-block;width:0;height:0;margin-left:6px;vertical-align:2px;border:4px solid transparent;border-top-color:currentColor;border-bottom:0}
+.tab-btn:hover{color:var(--ink);border-bottom-color:var(--line)}
+.tab-btn.current{color:var(--accent);font-weight:600;border-bottom-color:var(--accent)}
+.tab-btn[aria-expanded=true]{color:var(--ink)}
+.sec-menu{position:fixed;z-index:40;width:220px;background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:0 10px 28px rgba(0,0,0,.16);padding:6px;display:flex;flex-direction:column}
+.sec-menu a{padding:8px 10px;border-radius:6px;color:var(--ink);text-decoration:none;font-size:14px}
+.sec-menu a:hover,.sec-menu a:focus-visible{background:var(--line2);outline:none}
+.sec-menu a[aria-current=page]{color:var(--accent);font-weight:600;background:var(--accent-soft)}
 .lede{max-width:78ch;color:var(--ink2);margin:0 0 8px}
 .caveat{max-width:92ch;background:var(--warn-soft);color:var(--ink);border-left:3px solid var(--warn);padding:9px 13px;border-radius:4px;font-size:14px;margin:12px 0 0}
 .focus{display:flex;align-items:center;gap:10px;margin:18px 0;flex-wrap:wrap}
@@ -128,5 +137,5 @@ a.more:hover{text-decoration:underline}
 .peek.shoo .peek-say{opacity:0;transition-delay:0s}
 @media (max-width:640px){.peek,.peek svg{width:110px}}
 @media (prefers-reduced-motion:reduce){.peek,.peek-say{transition:none}}
-@media (max-width:1180px){#nav{justify-content:flex-start}}
+
 @media (max-width:640px){.tiles{grid-template-columns:1fr 1fr;gap:8px}.tile{padding:10px 12px}.tile b{font-size:21px}.spark{height:22px}.top-in{min-height:52px}.brand{font-size:18px}#nav{justify-content:flex-start}.wrap{padding:0 16px}.ms-btn{min-width:140px}h1{font-size:24px}.stamp{display:none}}

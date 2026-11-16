@@ -883,14 +883,67 @@ function peekStop() {
   if (PEEK.el) { PEEK.el.remove(); PEEK.el = null; }
 }
 
+/* ---------- "Sectors" dropdown in the tab bar ---------- */
+const SECTOR_KEYS = Object.keys(PAGES).filter((k) => k !== "macro" && k !== "states");
+function closeSectors() {
+  const m = document.querySelector(".sec-menu");
+  if (m) m.remove();
+  const b = document.getElementById("sectors-btn");
+  if (b) b.setAttribute("aria-expanded", "false");
+}
+function sectorsButton() {
+  const btn = el("button", { type: "button", id: "sectors-btn", class: "tab-btn", "aria-haspopup": "true", "aria-expanded": "false", "aria-controls": "sec-menu" }, "Sectors");
+  btn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (document.querySelector(".sec-menu")) { closeSectors(); return; }
+    btn.scrollIntoView({ block: "nearest", inline: "nearest" });
+    const name = readHash().page;
+    const menu = el("div", { class: "sec-menu", id: "sec-menu", role: "menu", onclick: (ev) => ev.stopPropagation() },
+      SECTOR_KEYS.map((k) => {
+        const a = el("a", { href: "#/" + k, role: "menuitem", onclick: () => closeSectors() }, PAGES[k].label);
+        a.dataset.p = k;
+        if (k === name) a.setAttribute("aria-current", "page");
+        return a;
+      }));
+    // Fixed position so the tab bar's sideways scrolling on phones can't clip it.
+    const r = btn.getBoundingClientRect();
+    menu.style.top = Math.round(r.bottom) + "px";
+    menu.style.left = Math.round(Math.max(8, Math.min(r.left, innerWidth - 228))) + "px";
+    document.body.append(menu);
+    secOpened = Date.now();
+    btn.setAttribute("aria-expanded", "true");
+    menu.querySelector("a").focus();
+  });
+  btn.addEventListener("keydown", (e) => { if (e.key === "ArrowDown" && !document.querySelector(".sec-menu")) { e.preventDefault(); btn.click(); } });
+  return btn;
+}
+document.addEventListener("click", closeSectors);
+document.addEventListener("keydown", (e) => {
+  const m = document.querySelector(".sec-menu");
+  if (!m) return;
+  const items = [...m.querySelectorAll("a")], i = items.indexOf(document.activeElement);
+  if (e.key === "Escape") { closeSectors(); document.getElementById("sectors-btn").focus(); }
+  else if (e.key === "ArrowDown") { e.preventDefault(); items[(i + 1) % items.length].focus(); }
+  else if (e.key === "ArrowUp") { e.preventDefault(); items[(i - 1 + items.length) % items.length].focus(); }
+});
+window.addEventListener("resize", closeSectors);
+// Close if the tab bar is scrolled, but not from the scroll that brought the button into view.
+let secOpened = 0;
+document.getElementById("nav").addEventListener("scroll", () => { if (Date.now() - secOpened > 400) closeSectors(); }, { passive: true });
+
 async function route() {
   peekStop();
   const { page, q } = readHash();
   const name = PAGES[page] || ["sources", "daily", "dashboard"].includes(page) ? page : "dashboard";
-  document.querySelectorAll("nav a").forEach((a) => {
+  closeSectors();
+  document.querySelectorAll("nav a, .sec-menu a").forEach((a) => {
     if (a.dataset.p === name) a.setAttribute("aria-current", "page");
     else a.removeAttribute("aria-current");
   });
+  const sb = document.getElementById("sectors-btn");
+  if (sb) sb.classList.toggle("current", SECTOR_KEYS.includes(name));
+  const cur = SECTOR_KEYS.includes(name) ? sb : document.querySelector('#nav a[aria-current="page"]');
+  if (cur) { const bar = document.getElementById("nav"); bar.scrollLeft = Math.max(0, cur.offsetLeft - (bar.clientWidth - cur.offsetWidth) / 2); }
   try {
     if (name === "sources") showSources();
     else if (name === "daily") { await loadPicks(); showDaily(q); }
@@ -903,10 +956,9 @@ async function route() {
 
 async function start() {
   const nav = document.getElementById("nav");
-  for (const [k, p] of [["dashboard", { label: "Dashboard" }], ["daily", { label: "Daily updates" }], ...Object.entries(PAGES), ["sources", { label: "Sources" }]]) {
-    nav.append(el("a", { href: "#/" + k, "data-p": k }, p.label));
-    nav.lastChild.dataset.p = k;
-  }
+  const link = (k, label) => { const a = el("a", { href: "#/" + k }, label); a.dataset.p = k; return a; };
+  nav.append(link("dashboard", "Dashboard"), link("daily", "Daily updates"), link("macro", PAGES.macro.label),
+    link("states", PAGES.states.label), sectorsButton(), link("sources", "Sources"));
   try {
     [G.meta, G.news] = await Promise.all([getJSON("meta"), getJSON("news")]);
   } catch (e) {
