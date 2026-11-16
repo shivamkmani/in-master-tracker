@@ -916,6 +916,7 @@ async function start() {
   document.getElementById("stamp").textContent = "Refreshed " + new Date(G.news.updated).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
   window.addEventListener("hashchange", () => {
     if (!V || readHash().page !== V.page) route();
+    else if (V.page === "dashboard" && peekWanted()) peekShow();  // ?mitron added without a reload
   });
   route();
 }
