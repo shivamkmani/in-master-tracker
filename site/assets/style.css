@@ -116,5 +116,16 @@ a.more:hover{text-decoration:underline}
 .sec-card .muted{font-size:13px}
 .sec-card small{color:var(--ink3);font-size:12px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin-top:4px}
 .foot{border-top:1px solid var(--line);margin-top:8px;padding:18px 24px 28px;text-align:center;font-size:13px;color:var(--ink3)}
+.peek{position:fixed;right:0;bottom:18vh;z-index:30;width:150px;padding:0;border:0;background:none;cursor:pointer;min-height:0;
+  transform:translateX(115%) rotate(-14deg);transform-origin:100% 100%;transition:transform .7s cubic-bezier(.2,.9,.3,1.2)}
+.peek svg{display:block;width:150px;height:auto;filter:drop-shadow(-3px 4px 6px rgba(0,0,0,.18))}
+.peek.in{transform:translateX(42%) rotate(-14deg)}
+.peek.in:hover{transform:translateX(36%) rotate(-10deg)}
+.peek.shoo{transform:translateX(130%) rotate(10deg);transition:transform .35s ease-in}
+.peek:focus-visible{outline:2px solid var(--accent);outline-offset:4px}
+.peek-say{position:absolute;left:-58px;top:6px;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:12px 12px 2px 12px;padding:4px 10px;font-size:13px;font-weight:600;white-space:nowrap;transform:rotate(14deg);opacity:0;transition:opacity .3s .6s}
+.peek.in .peek-say{opacity:1}
+.peek.shoo .peek-say{opacity:0;transition-delay:0s}
+@media (max-width:640px){.peek,.peek svg{width:110px}}
 @media (max-width:1180px){#nav{justify-content:flex-start}}
 @media (max-width:640px){.tiles{grid-template-columns:1fr 1fr;gap:8px}.tile{padding:10px 12px}.tile b{font-size:21px}.spark{height:22px}.top-in{min-height:52px}.brand{font-size:18px}#nav{justify-content:flex-start}.wrap{padding:0 16px}.ms-btn{min-width:140px}h1{font-size:24px}.stamp{display:none}}

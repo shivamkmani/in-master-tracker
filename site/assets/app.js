@@ -858,7 +858,45 @@ function showDaily(q) {
   save(); drawMain(); drawCal();
 }
 
+/* ---------- dashboard easter egg: a visitor peeks in when you go idle ---------- */
+const PEEK_SVG = '<svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 170"><path d="M18 170 C20 138 40 124 70 122 C100 124 122 138 124 170 Z" fill="#33415f"/><path d="M56 123 L70 150 L84 123 C80 121 60 121 56 123 Z" fill="#f3ede1"/><path d="M62 123 L70 138 L78 123" fill="none" stroke="#d9cfbc" stroke-width="1.5"/><path d="M58 108 L58 124 C64 128 76 128 82 124 L82 108 Z" fill="#d9a77c"/><ellipse cx="104" cy="70" rx="7" ry="11" fill="#d9a77c"/><ellipse cx="70" cy="66" rx="34" ry="40" fill="#e3b58b"/><path d="M37 58 C36 34 52 22 72 22 C92 22 106 34 105 60 C100 46 92 38 78 36 C64 34 48 40 37 58 Z" fill="#f4f4f1"/><path d="M44 44 C56 34 76 32 92 38" fill="none" stroke="#dcdcd6" stroke-width="1.5"/><path d="M37 68 C38 92 50 112 70 114 C90 112 102 92 103 68 C99 80 94 86 88 88 C82 82 58 82 52 88 C46 86 41 80 37 68 Z" fill="#f4f4f1"/><path d="M52 88 C58 82 82 82 88 88" fill="none" stroke="#dcdcd6" stroke-width="1.2"/><path d="M54 84 C60 78 66 79 70 82 C74 79 80 78 86 84 C80 85 74 85 70 84 C66 85 60 85 54 84 Z" fill="#ffffff" stroke="#dcdcd6" stroke-width="1"/><path d="M63 91 C67 94 73 94 77 91" fill="none" stroke="#b9826a" stroke-width="1.6" stroke-linecap="round"/><path d="M70 62 C68 70 66 74 69 76 C71 77 73 76 74 75" fill="none" stroke="#c48e66" stroke-width="1.6" stroke-linecap="round"/><path d="M48 52 C53 49 59 49 63 51" fill="none" stroke="#e8e8e3" stroke-width="3" stroke-linecap="round"/><path d="M77 51 C81 49 87 49 92 52" fill="none" stroke="#e8e8e3" stroke-width="3" stroke-linecap="round"/><ellipse cx="56" cy="61" rx="2.6" ry="2.2" fill="#2b2420"/><ellipse cx="84" cy="61" rx="2.6" ry="2.2" fill="#2b2420"/><rect x="45" y="54" width="22" height="15" rx="6" fill="none" stroke="#a08a5c" stroke-width="1.4"/><rect x="73" y="54" width="22" height="15" rx="6" fill="none" stroke="#a08a5c" stroke-width="1.4"/><path d="M67 60 C69 58 71 58 73 60" fill="none" stroke="#a08a5c" stroke-width="1.4"/></svg>';
+const PEEK = { timer: null, el: null, off: false };
+function peekReset() {
+  clearTimeout(PEEK.timer);
+  if (!PEEK.off && !PEEK.el) PEEK.timer = setTimeout(peekShow, 12000);
+}
+function peekShow() {
+  if (PEEK.off || PEEK.el || !V || V.page !== "dashboard" || document.hidden) return;
+  const b = el("button", { type: "button", class: "peek", "aria-label": "A visitor is peeking in. Click to shoo him away.", title: "Click to shoo" });
+  b.innerHTML = PEEK_SVG + '<span class="peek-say">Mitron…</span>';  // fixed markup, no data
+  b.addEventListener("click", () => {
+    PEEK.off = true;
+    try { sessionStorage.setItem("peek-off", "1"); } catch (e) { /* storage blocked: shoo for this page only */ }
+    b.classList.add("shoo");
+    b.addEventListener("transitionend", () => b.remove(), { once: true });
+    setTimeout(() => b.remove(), 900);
+    PEEK.el = null;
+  });
+  document.body.append(b);
+  PEEK.el = b;
+  requestAnimationFrame(() => requestAnimationFrame(() => b.classList.add("in")));
+}
+function peekStart() {
+  try { PEEK.off = PEEK.off || sessionStorage.getItem("peek-off") === "1"; } catch (e) { /* ignore */ }
+  if (PEEK.off || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  peekReset();
+}
+function peekStop() {
+  clearTimeout(PEEK.timer);
+  if (PEEK.el) { PEEK.el.remove(); PEEK.el = null; }
+}
+// Any activity resets the idle clock; it only runs while the dashboard is open.
+for (const ev of ["pointermove", "pointerdown", "keydown", "scroll", "touchstart", "wheel"]) {
+  window.addEventListener(ev, () => { if (V && V.page === "dashboard" && !PEEK.el) peekReset(); }, { passive: true });
+}
+
 async function route() {
+  peekStop();
   const { page, q } = readHash();
   const name = PAGES[page] || ["sources", "daily", "dashboard"].includes(page) ? page : "dashboard";
   document.querySelectorAll("nav a").forEach((a) => {
@@ -868,7 +906,7 @@ async function route() {
   try {
     if (name === "sources") showSources();
     else if (name === "daily") { await loadPicks(); showDaily(q); }
-    else if (name === "dashboard") { await loadPicks(); await showHome(); }
+    else if (name === "dashboard") { await loadPicks(); await showHome(); peekStart(); }
     else await showData(name, q);
   } catch (e) {
     document.getElementById("app").replaceChildren(el("p", { class: "empty" }, "Couldn't load this page: " + e.message));
