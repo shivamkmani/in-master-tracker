@@ -4,7 +4,7 @@ A static site that brings together Indian macro, state and sector data with a da
 
 ## Sections
 
-Daily updates (the home page), India macro, States, Semiconductors, Electronics, Logistics, Textiles, Pharma, Finance, and Sources.
+Home (a dashboard: headline macro figures, the latest daily picks, recent macro developments and a card per section), Daily updates, India macro, States, Semiconductors, Electronics, Logistics, Textiles, Pharma, Finance, and Sources.
 
 Daily updates shows the articles hand-picked for the day, with a calendar for past days and a search across every title. It is filled from the running updates document (see `picks/README.md`).
 

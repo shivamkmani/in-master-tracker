@@ -263,7 +263,7 @@ function saveHash() {
 }
 function readHash() {
   const [path, query] = location.hash.replace(/^#\/?/, "").split("?");
-  return { page: path || "daily", q: new URLSearchParams(query || "") };
+  return { page: path || "home", q: new URLSearchParams(query || "") };
 }
 
 /* ---------- multi-select ---------- */
@@ -476,7 +476,7 @@ function renderNews() {
     if (!rows.length) list.append(el("li", { class: "muted" }, "Nothing here for these filters. History builds up daily, so try a wider time window."));
     for (const r of rows.slice(0, 200)) {
       const place = r.states.length ? " · " + r.states.slice(0, 3).join(", ") : "";
-      list.append(el("li", null, el("a", { href: r.url, target: "_blank", rel: "noopener" }, r.title),
+      list.append(el("li", null, el("a", { href: r.url, target: "_blank", rel: "noopener" }, tidy(r.title)),
         el("small", null, dateLabel(r.date) + " · " + r.publisher + place)));
     }
   }
@@ -485,25 +485,131 @@ function renderNews() {
   drawList();
 }
 
-/* ---------- headline tiles ---------- */
-function latest(test) {
-  const rows = V.rows.filter(test).sort((a, b) => a.p < b.p ? 1 : -1);
-  return rows[0];
+/* Some releases arrive in capitals; show them in sentence case. */
+function tidy(t) {
+  const letters = t.replace(/[^A-Za-z]/g, "");
+  if (letters.length < 12 || letters !== letters.toUpperCase()) return t;
+  const keep = /^(GDP|CPI|WPI|IIP|RBI|SEBI|GST|MSME|PLI|FDI|US|UK|EU|UAE|PIB|ISRO|AI|IT|NITI|DPIIT|DGFT|PM|MOU|FY\d*)$/;
+  const proper = /^(india|indian|january|february|march|april|may|june|july|august|september|october|november|december|union|minister|ministry)$/;
+  const low = t.toLowerCase().replace(/\b[a-z][a-z0-9-]*\b/g, (w) =>
+    keep.test(w.toUpperCase()) ? w.toUpperCase() : proper.test(w) ? w.charAt(0).toUpperCase() + w.slice(1) : w);
+  return low.charAt(0).toUpperCase() + low.slice(1);
 }
-function tiles() {
-  const defs = [
-    ["GDP growth, real", (r) => /GDP Growth Rate \(constant/.test(r.ind) && r.f === "Annual", "%"],
-    ["CPI inflation", (r) => r.ind.startsWith("CPI inflation") && r.seg === "CPI (General)", "%"],
-    ["IIP growth", (r) => r.ind.startsWith("IIP growth") && r.seg === "General", "%"],
-    ["Unemployment rate", (r) => r.ind === "Unemployment rate", "%"],
-    ["Goods trade balance", (r) => /balance/i.test(r.ind) && r.ds === "rbi_trade", " US$ m"],
-  ];
+
+/* ---------- headline tiles ---------- */
+const TILE_DEFS = [
+  ["GDP growth, quarterly", (r) => /GDP Growth Rate \(constant/.test(r.ind) && r.f === "Quarterly", "%", "Quarterly GDP growth"],
+  ["GDP growth, annual", (r) => /GDP Growth Rate \(constant/.test(r.ind) && r.f === "Annual", "%", "GDP growth"],
+  ["CPI inflation", (r) => r.ind.startsWith("CPI inflation") && r.seg === "CPI (General)", "%", "CPI inflation"],
+  ["IIP growth", (r) => r.ind.startsWith("IIP growth") && r.seg === "General", "%", "IIP growth"],
+  ["Unemployment rate", (r) => r.ind === "Unemployment rate", "%", null],
+  ["Goods trade balance", (r) => /balance/i.test(r.ind) && r.ds === "rbi_trade", "usd_m", "Trade"],
+];
+
+/* Tiny trend line for a tile: last 12 values, no axes. */
+function spark(vals) {
+  if (vals.length < 3) return null;
+  const NS = "http://www.w3.org/2000/svg", W = 120, H = 28;
+  let lo = Math.min(...vals), hi = Math.max(...vals);
+  if (lo === hi) { lo -= 1; hi += 1; }
+  const pts = vals.map((v, i) => (i * W / (vals.length - 1)).toFixed(1) + "," + (2 + (hi - v) * (H - 4) / (hi - lo)).toFixed(1));
+  const svg = document.createElementNS(NS, "svg");
+  svg.setAttribute("viewBox", "0 0 " + W + " " + H);
+  svg.setAttribute("class", "spark");
+  svg.setAttribute("preserveAspectRatio", "none");
+  svg.setAttribute("aria-hidden", "true");
+  const line = document.createElementNS(NS, "polyline");
+  line.setAttribute("points", pts.join(" "));
+  svg.append(line);
+  const [lx, ly] = pts[pts.length - 1].split(",");
+  const dot = document.createElementNS(NS, "circle");
+  dot.setAttribute("cx", lx); dot.setAttribute("cy", ly); dot.setAttribute("r", 2.5);
+  svg.append(dot);
+  return svg;
+}
+
+function tiles(rows, linked) {
   const out = [];
-  for (const [label, test, suffix] of defs) {
-    const r = latest(test);
-    if (r) out.push(el("div", { class: "tile" }, el("b", null, fmt(r.v) + suffix), el("span", null, label), el("small", null, periodLabel(r.p, r.f) + " · " + (G.meta.datasets[r.ds] || {}).publisher)));
+  for (const [label, test, suffix, preset] of TILE_DEFS) {
+    const series = rows.filter((r) => r.geo === "All India" && test(r)).sort((a, b) => a.p < b.p ? -1 : 1);
+    const r = series[series.length - 1];
+    if (!r) continue;
+    const big = suffix === "usd_m" ? (r.v < 0 ? "−" : "") + "$" + fmt(Math.round(Math.abs(r.v) / 100) / 10) + " bn" : fmt(r.v) + suffix;
+    const kids = [el("b", null, big), el("span", null, label),
+      linked ? spark(series.slice(-12).map((x) => x.v)) : null,
+      el("small", null, periodLabel(r.p, r.f) + " · " + (G.meta.datasets[r.ds] || {}).publisher)];
+    out.push(linked
+      ? el("a", { class: "tile", href: "#/macro", title: "Open India macro", onclick: () => { if (preset) G.pendingPreset = preset; } }, kids)
+      : el("div", { class: "tile" }, kids));
   }
   return out.length ? el("section", { class: "tiles", "aria-label": "Headline indicators" }, out) : null;
+}
+
+/* ---------- home: a snapshot of everything, with links into each page ---------- */
+const MACRO_NEWS = ["macro", "finance"];
+
+async function showHome() {
+  const macro = await loadPage("macro");
+  V = { page: "home" };
+  const picks = (G.picks && G.picks.items) || [];
+  const today = localISO(new Date());
+  const days = uniq(picks.map((r) => r.date)).sort();
+  const day = days.includes(today) ? today : days[days.length - 1];
+  const dayRows = picks.filter((r) => r.date === day);
+
+  const more = (href, text) => el("a", { class: "more", href }, text + " →");
+
+  // Daily picks
+  const daily = el("section", { class: "card", "aria-label": "Daily updates" });
+  const jump = el("input", { type: "search", placeholder: "Search all " + picks.length.toLocaleString("en-IN") + " picked articles", "aria-label": "Search picked articles" });
+  jump.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && jump.value.trim()) location.hash = "#/daily?q=" + encodeURIComponent(jump.value.trim());
+  });
+  daily.append(el("div", { class: "card-h" },
+    el("h2", null, "Daily updates"),
+    day ? el("span", { class: "muted" }, (day === today ? "Today, " : "") + dateLabel(day) + " · " + dayRows.length + (dayRows.length === 1 ? " article" : " articles")) : null));
+  if (!dayRows.length) {
+    daily.append(el("p", { class: "empty" }, "No articles picked yet."));
+  } else {
+    if (day !== today) daily.append(el("p", { class: "note" }, "Nothing picked for today yet, so this is the latest day."));
+    daily.append(el("ul", { class: "news picks" }, dayRows.slice(0, 8).map(pickLine)));
+  }
+  daily.append(el("div", { class: "card-f" }, jump,
+    more("#/daily" + (day ? "?d=" + day : ""), dayRows.length > 8 ? "All " + dayRows.length + " for this day" : "Calendar and archive")));
+
+  // Macro and finance developments
+  const nat = G.news.items.filter((r) => r.sectors.some((x) => MACRO_NEWS.includes(x)) && r.scope !== "State").slice(0, 8);
+  const devs = el("aside", { class: "card", "aria-label": "Macro developments" },
+    el("div", { class: "card-h" }, el("h2", null, "Macro developments"), el("span", { class: "muted" }, "Government and regulators")),
+    nat.length
+      ? el("ul", { class: "news flat" }, nat.map((r) => el("li", null,
+          el("a", { href: r.url, target: "_blank", rel: "noopener" }, tidy(r.title)),
+          el("small", null, dateLabel(r.date) + " · " + r.publisher))))
+      : el("p", { class: "empty" }, "No recent macro developments."),
+    el("div", { class: "card-f" }, more("#/macro", "All macro data and news"), more("#/finance", "Finance")));
+
+  // One card per section: what's new there this week
+  const weekAgo = localISO(new Date(Date.now() - 7 * 864e5));
+  const sections = Object.entries(PAGES).filter(([k]) => k !== "macro").map(([k, P]) => {
+    const sectors = P.news ? [].concat(P.news) : null;
+    const rel = G.news.items.filter((r) => sectors ? r.sectors.some((x) => sectors.includes(x)) : r.scope === "State");
+    const week = rel.filter((r) => r.date >= weekAgo).length;
+    const top = rel[0];
+    return el("a", { class: "sec-card", href: "#/" + k },
+      el("b", null, P.label),
+      el("span", { class: "muted" }, week ? week + (week === 1 ? " development" : " developments") + " this week" : "No new developments this week"),
+      top ? el("small", null, tidy(top.title)) : null);
+  });
+
+  const updated = new Date(G.meta.updated).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+  document.getElementById("app").replaceChildren(
+    el("div", { class: "home-h" },
+      el("h1", null, "India snapshot"),
+      el("p", { class: "muted" }, longDate(today) + ". Official data refreshed " + updated + ".")),
+    tiles(macro, true),
+    el("div", { class: "grid" }, daily, devs),
+    el("h2", { class: "sec-title" }, "Sectors and states"),
+    el("section", { class: "sec-cards", "aria-label": "Sections" }, sections));
 }
 
 /* ---------- pages ---------- */
@@ -524,8 +630,10 @@ async function showData(page, q) {
     s.freq = q.get("freq"); s.span = +(q.get("span") ?? 12);
     for (const k of ["ds", "geo", "seg", "ind"]) s[k] = q.get(k) ? q.get(k).split("|") : [];
   } else {
-    V.preset = P.presets[0][0];
-    applyPreset(P.presets[0][1]);
+    const want = (G.pendingPreset && P.presets.find(([n]) => n === G.pendingPreset)) || P.presets[0];
+    G.pendingPreset = null;
+    V.preset = want[0];
+    applyPreset(want[1]);
   }
   const focusSel = el("select", { id: "focus", onchange: (e) => {
     G.focus = e.target.value;
@@ -541,7 +649,7 @@ async function showData(page, q) {
   app.replaceChildren(...[
     el("h1", null, P.label), el("p", { class: "lede" }, P.lede),
     P.caveat ? el("p", { class: "caveat" }, P.caveat) : null,
-    page === "macro" ? tiles() : null,
+    page === "macro" ? tiles(rows, false) : null,
     el("div", { class: "focus" }, el("label", { htmlFor: "focus" }, "Focus state"), focusSel),
     el("div", { class: "grid" }, V.builder, V.newsHost),
   ].filter(Boolean));
@@ -732,7 +840,7 @@ function showDaily(q) {
 
 async function route() {
   const { page, q } = readHash();
-  const name = PAGES[page] || page === "sources" || page === "daily" ? page : "daily";
+  const name = PAGES[page] || ["sources", "daily", "home"].includes(page) ? page : "home";
   document.querySelectorAll("nav a").forEach((a) => {
     if (a.dataset.p === name) a.setAttribute("aria-current", "page");
     else a.removeAttribute("aria-current");
@@ -740,6 +848,7 @@ async function route() {
   try {
     if (name === "sources") showSources();
     else if (name === "daily") showDaily(q);
+    else if (name === "home") await showHome();
     else await showData(name, q);
   } catch (e) {
     document.getElementById("app").replaceChildren(el("p", { class: "empty" }, "Couldn't load this page: " + e.message));
@@ -748,7 +857,7 @@ async function route() {
 
 async function start() {
   const nav = document.getElementById("nav");
-  for (const [k, p] of [["daily", { label: "Daily updates" }], ...Object.entries(PAGES), ["sources", { label: "Sources" }]]) {
+  for (const [k, p] of [["home", { label: "Home" }], ["daily", { label: "Daily updates" }], ...Object.entries(PAGES), ["sources", { label: "Sources" }]]) {
     nav.append(el("a", { href: "#/" + k, "data-p": k }, p.label));
     nav.lastChild.dataset.p = k;
   }
