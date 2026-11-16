@@ -1,10 +1,10 @@
-# India Tracker
+# India Master Tracker
 
 A static site that brings together Indian macro, state and sector data with a daily list of developments. Data comes only from government bodies and trade associations.
 
 ## Sections
 
-Home (a dashboard: headline macro figures, the latest daily picks, recent macro developments and a card per section), Daily updates, India macro, States, Semiconductors, Electronics, Logistics, Textiles, Pharma, Finance, and Sources.
+Dashboard (the landing page: headline macro figures, the latest daily picks, recent macro developments and a card per section; the site title returns here), Daily updates, India macro, States, Semiconductors, Electronics, Logistics, Textiles, Pharma, Energy, Finance, and Sources.
 
 Daily updates shows the articles hand-picked for the day, with a calendar for past days and a search across every title. It is filled from the running updates document (see `picks/README.md`).
 
@@ -49,4 +49,5 @@ python3 -m http.server 8765 --directory site
 - MoSPI's copy of RBI monthly trade and reserves data ended at June 2025 when this was built.
 - India has no official semiconductor output series. NIC 261 is used as the closest proxy.
 - Finance has no bank credit, deposit or interest rate series yet. RBI publishes these on its own database (DBIE), which the pipeline does not read.
-- Pharma factory data (ASI NIC 21) appears after the next full run with "Also refresh ASI" ticked.
+- Pharma, refinery and power-plant factory data (ASI NIC 21, 19 and 35) appears after the next full run with "Also refresh ASI" ticked.
+- Energy has no physical volumes yet (crude and gas output, refinery throughput, power generation, capacity). PPAC and CEA publish these outside MoSPI.

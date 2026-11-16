@@ -89,6 +89,21 @@ const PAGES = {
       ["Jobs by state", { ds: ["asi"], ind: /Persons Engaged/, seg: /^NIC 21:/, freq: "Annual" }],
     ],
   },
+  energy: {
+    label: "Energy", news: "energy",
+    lede: "Oil, gas, coal and power: production and price indices, trade, value added by state, and developments in India and abroad.",
+    caveat: "Physical volumes (crude and gas output, refinery throughput, power generation in units, installed capacity) aren't included yet: PPAC and CEA publish them outside MoSPI, so the IIP electricity and fuel-mineral indices are the closest monthly measures. State figures use a 2011-12 base. Refinery and power-plant factory data (ASI NIC 19 and 35) appears after the next full ASI run.",
+    presets: [
+      ["Power output growth", { ds: ["iip"], ind: /IIP growth/, seg: /Electricity/, freq: "Monthly" }],
+      ["Renewable vs other power", { ds: ["iip"], ind: /IIP index/, seg: /Renewable Electricity$/, freq: "Monthly" }],
+      ["Fuel and power prices", { ds: ["wpi"], seg: /^(Fuel & Power|Mineral Oils|Coal and Lignite|Electricity)$/, freq: "Monthly" }],
+      ["Oil and coal trade", { ds: ["rbi_commodity"], freq: "Annual" }],
+      ["Utilities GVA by state", { ds: ["gsva"], ind: /constant/, seg: /^Electricity/, freq: "Annual" }],
+      ["Mining GVA by state", { ds: ["gsva"], ind: /constant/, seg: /^Mining/, freq: "Annual" }],
+      ["Household fuel inflation", { ds: ["cpi"], ind: /CPI inflation/, freq: "Monthly" }],
+      ["Refining GVA by state", { ds: ["asi"], ind: /^Gross Value Added$/, seg: /^NIC 19:/, freq: "Annual" }],
+    ],
+  },
   finance: {
     label: "Finance", news: "finance",
     lede: "Banking, insurance and financial services: value added nationally and by state, monthly service output, reserves, and developments from RBI, SEBI and others.",
@@ -263,7 +278,8 @@ function saveHash() {
 }
 function readHash() {
   const [path, query] = location.hash.replace(/^#\/?/, "").split("?");
-  return { page: path || "home", q: new URLSearchParams(query || "") };
+  const page = path === "home" ? "dashboard" : path;  // old links
+  return { page: page || "dashboard", q: new URLSearchParams(query || "") };
 }
 
 /* ---------- multi-select ---------- */
@@ -550,7 +566,7 @@ const MACRO_NEWS = ["macro", "finance"];
 
 async function showHome() {
   const macro = await loadPage("macro");
-  V = { page: "home" };
+  V = { page: "dashboard" };
   const picks = (G.picks && G.picks.items) || [];
   const today = localISO(new Date());
   const days = uniq(picks.map((r) => r.date)).sort();
@@ -604,7 +620,7 @@ async function showHome() {
   const updated = new Date(G.meta.updated).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
   document.getElementById("app").replaceChildren(
     el("div", { class: "home-h" },
-      el("h1", null, "India snapshot"),
+      el("h1", null, "Dashboard"),
       el("p", { class: "muted" }, longDate(today) + ". Official data refreshed " + updated + ".")),
     tiles(macro, true),
     el("div", { class: "grid" }, daily, devs),
@@ -840,7 +856,7 @@ function showDaily(q) {
 
 async function route() {
   const { page, q } = readHash();
-  const name = PAGES[page] || ["sources", "daily", "home"].includes(page) ? page : "home";
+  const name = PAGES[page] || ["sources", "daily", "dashboard"].includes(page) ? page : "dashboard";
   document.querySelectorAll("nav a").forEach((a) => {
     if (a.dataset.p === name) a.setAttribute("aria-current", "page");
     else a.removeAttribute("aria-current");
@@ -848,7 +864,7 @@ async function route() {
   try {
     if (name === "sources") showSources();
     else if (name === "daily") showDaily(q);
-    else if (name === "home") await showHome();
+    else if (name === "dashboard") await showHome();
     else await showData(name, q);
   } catch (e) {
     document.getElementById("app").replaceChildren(el("p", { class: "empty" }, "Couldn't load this page: " + e.message));
@@ -857,7 +873,7 @@ async function route() {
 
 async function start() {
   const nav = document.getElementById("nav");
-  for (const [k, p] of [["home", { label: "Home" }], ["daily", { label: "Daily updates" }], ...Object.entries(PAGES), ["sources", { label: "Sources" }]]) {
+  for (const [k, p] of [["dashboard", { label: "Dashboard" }], ["daily", { label: "Daily updates" }], ...Object.entries(PAGES), ["sources", { label: "Sources" }]]) {
     nav.append(el("a", { href: "#/" + k, "data-p": k }, p.label));
     nav.lastChild.dataset.p = k;
   }

@@ -54,6 +54,7 @@ ASI_SECTORS = {
     "electronics": ["26", "261", "262", "263", "264", "265", "266", "267", "268"],
     "textiles": ["13", "131", "139", "14", "141", "142", "143", "15", "151", "152"],
     "pharma": ["21", "210"],
+    "energy": ["19", "191", "192", "35", "351", "352"],
 }
 IIP_RX = {
     "electronics": re.compile(r"computer, electronic|electrical equipment", re.I),
@@ -72,6 +73,13 @@ GSVA_LOGISTICS = re.compile(r"transport|storage|railway", re.I)
 ISP_FINANCE = re.compile(r"^(banking|insurance)$", re.I)
 NAS_FINANCE = re.compile(r"^financial", re.I)
 CPI_HEALTH = re.compile(r"^health$", re.I)
+ENERGY_IIP = re.compile(r"^(electricity|electricity & gas supply|gas supply|fuel minerals|(non-)?renewable electricity|"
+                        r"manufacture of coke and refined petroleum products|mining & quarrying)$", re.I)
+ENERGY_WPI = re.compile(r"^(fuel & power|coal and lignite|coking coal|non-coking coal|mineral oils|electricity|"
+                        r"thermal electricity|hydro electricity|crude petroleum & natural gas)$", re.I)
+ENERGY_NAS = re.compile(r"^(electricity, gas|mining and quarrying)", re.I)
+ENERGY_CPI = re.compile(r"electricity, gas and other fuels", re.I)
+ENERGY_TRADE = re.compile(r"^(petroleum|coal, coke)", re.I)
 COMMODITY_RX = {
     "electronics": re.compile(r"electronic", re.I),
     "semiconductors": re.compile(r"electronic", re.I),
@@ -402,7 +410,8 @@ def main():
             status["ASI"] = {"ok": False, "error": str(exc)[:200]}
             print("FAILED ASI: %s" % exc)
 
-    prior = {n: previous(n) for n in ("macro", "states", "semiconductors", "electronics", "logistics", "textiles", "pharma")}
+    prior = {n: previous(n) for n in ("macro", "states", "semiconductors", "electronics", "logistics", "textiles", "pharma",
+                                      "energy")}
 
     def get(part, file, ds):
         """Fresh rows if this run got them, else last good rows for that dataset.
@@ -439,6 +448,10 @@ def main():
           [r for r in get("nas", "macro", "nas") if NAS_FINANCE.search(r[2])]
           + sel(get("gsva", "states", "gsva"), NAS_FINANCE) + sel(isp, ISP_FINANCE)
           + get("rbi_fx", "macro", "rbi_fx"), status)
+    write("energy", "Energy",
+          get("asi_energy", "energy", "asi") + sel(iip, ENERGY_IIP) + sel(wpi, ENERGY_WPI)
+          + sel(get("nas", "macro", "nas"), ENERGY_NAS) + sel(get("gsva", "states", "gsva"), ENERGY_NAS)
+          + sel(india_cpi + state_cpi, ENERGY_CPI) + sel(commodity, ENERGY_TRADE), status)
 
     meta_path = os.path.join(DATA, "meta.json")
     if os.path.exists(meta_path):  # keep the last known status of anything not run now
