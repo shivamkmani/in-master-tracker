@@ -139,7 +139,7 @@ nav a.on{color:var(--cyan);border-color:var(--edge);background:var(--panel);box-
 <script>
 "use strict";
 const $ = (t, a, ...k) => { const n = document.createElement(t); for (const [x, v] of Object.entries(a || {})) x === "class" ? n.className = v : n.setAttribute(x, v); n.append(...k.flat().filter((c) => c != null)); return n; };
-const get = (n) => fetch("data/" + n + ".json").then((r) => r.json());
+const get = (n) => fetch("data/" + n + ".json", { cache: "no-cache" }).then((r) => r.json());
 const fmt = (v) => v.toLocaleString("en-IN", { maximumFractionDigits: 2 });
 const MON = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
 const MONTHLY = new Set(["cpi", "wpi", "iip", "isp", "rbi_trade", "rbi_fx"]);

@@ -143,7 +143,9 @@ const periodLabel = (p, f) => f === "Monthly" ? MON[+p.slice(5) - 1] + " " + p.s
 const dateLabel = (s) => new Date(s + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 
 async function getJSON(name) {
-  const r = await fetch("data/" + name + ".json");
+  // Revalidate every time: Pages lets browsers reuse files for 10 minutes, which
+  // hid freshly published picks. Unchanged files come back as a cheap 304.
+  const r = await fetch("data/" + name + ".json", { cache: "no-cache" });
   if (!r.ok) throw new Error(name + ": HTTP " + r.status);
   return r.json();
 }
