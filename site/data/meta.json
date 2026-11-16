@@ -1,5 +1,5 @@
 {
- "updated": "2026-11-15T08:31+00:00",
+ "updated": "2026-11-16T08:54+00:00",
  "datasets": {
   "nas": {
    "title": "National Accounts Statistics",
@@ -105,7 +105,7 @@
   },
   "WPI": {
    "ok": true,
-   "rows": 7224
+   "rows": 7396
   },
   "ISP": {
    "ok": true,
@@ -118,6 +118,10 @@
   "RBI": {
    "ok": true,
    "rows": 4265
+  },
+  "ASI": {
+   "ok": true,
+   "rows": 63986
   }
  }
 }
