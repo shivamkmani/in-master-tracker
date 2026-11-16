@@ -954,7 +954,13 @@ async function route() {
   }
 }
 
+/* Secret mission control view: ?houston (before or after the #) opens it. */
+function houstonWanted() {
+  return new URLSearchParams(location.search).has("houston") || readHash().q.has("houston");
+}
+
 async function start() {
+  if (houstonWanted()) { location.replace("houston.html"); return; }
   const nav = document.getElementById("nav");
   const link = (k, label) => { const a = el("a", { href: "#/" + k }, label); a.dataset.p = k; return a; };
   nav.append(link("dashboard", "Dashboard"), link("daily", "Daily updates"), link("macro", PAGES.macro.label),
@@ -969,6 +975,7 @@ async function start() {
   window.addEventListener("hashchange", () => {
     if (!V || readHash().page !== V.page) route();
     else if (V.page === "dashboard" && peekWanted()) peekShow();  // ?mitron added without a reload
+    if (houstonWanted()) location.replace("houston.html");
   });
   route();
 }

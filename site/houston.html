@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>India Master Tracker</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@500;600;700&display=swap">
+<style>
+:root{--bg:#04080d;--panel:#0a121b;--panel2:#0d1824;--edge:#1d3245;--edge2:#2b4a66;--txt:#cfe3f2;--dim:#6f8ba3;--faint:#3d5770;
+  --go:#3ddc84;--amber:#ffb627;--nogo:#ff4d4d;--cyan:#55d6ff;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;--cond:"IBM Plex Sans Condensed","Arial Narrow",sans-serif}
+*{box-sizing:border-box}
+html,body{background:var(--bg)}
+body{margin:0;color:var(--txt);font:13px/1.45 var(--mono);
+  background-image:radial-gradient(ellipse at 50% -10%,rgba(85,214,255,.08),transparent 60%),repeating-linear-gradient(0deg,rgba(255,255,255,.012) 0 1px,transparent 1px 3px)}
+a{color:inherit;text-decoration:none}
+a:hover{color:var(--cyan)}
+.wrap{max-width:1480px;margin:0 auto;padding:12px 18px 18px}
+/* top bar */
+.top{display:grid;grid-template-columns:auto 1fr auto;gap:18px;align-items:center;border:1px solid var(--edge);background:linear-gradient(var(--panel2),var(--panel));padding:10px 14px}
+.id{display:flex;align-items:center;gap:12px}
+.patch{width:38px;height:38px;border-radius:50%;border:2px solid var(--cyan);display:grid;place-items:center;font:700 11px var(--cond);color:var(--cyan);letter-spacing:.06em;box-shadow:0 0 12px rgba(85,214,255,.35) inset}
+.id b{display:block;font:700 19px/1.1 var(--cond);letter-spacing:.14em;text-transform:uppercase}
+.id span{font:500 11px var(--cond);letter-spacing:.28em;color:var(--dim);text-transform:uppercase}
+.clocks{display:flex;justify-content:center;gap:26px;flex-wrap:wrap}
+.clk span{display:block;font:600 10px var(--cond);letter-spacing:.22em;color:var(--dim)}
+.clk b{font:500 22px/1.1 var(--mono);color:var(--amber);text-shadow:0 0 8px rgba(255,182,39,.45);font-variant-numeric:tabular-nums}
+.clk.met b{color:var(--cyan);text-shadow:0 0 8px rgba(85,214,255,.45)}
+.status{border:1px solid currentColor;padding:7px 12px;font:700 12px var(--cond);letter-spacing:.18em;color:var(--go);text-transform:uppercase;text-align:center}
+.status small{display:block;font:500 10px var(--mono);letter-spacing:.04em;color:var(--dim);text-transform:none;margin-top:2px}
+.status.warn{color:var(--amber)}
+nav{display:flex;gap:2px;margin:8px 0 10px;border-bottom:1px solid var(--edge);overflow-x:auto;scrollbar-width:none}
+nav a{font:600 11.5px var(--cond);letter-spacing:.2em;text-transform:uppercase;color:var(--dim);padding:7px 14px;border:1px solid transparent;border-bottom:0;white-space:nowrap}
+nav .exit{margin-left:auto;color:var(--amber)}
+nav .dd{position:relative}
+nav summary{list-style:none;cursor:pointer;font:600 11.5px var(--cond);letter-spacing:.2em;text-transform:uppercase;color:var(--dim);padding:7px 14px;white-space:nowrap}
+nav summary::-webkit-details-marker{display:none}
+nav .dd[open] summary{color:var(--cyan)}
+nav .dd div{position:fixed;z-index:20;margin-top:2px;background:var(--panel2);border:1px solid var(--edge2);display:flex;flex-direction:column;min-width:200px;box-shadow:0 10px 30px rgba(0,0,0,.6)}
+nav .dd div a{border:0;padding:8px 14px}
+nav a.on{color:var(--cyan);border-color:var(--edge);background:var(--panel);box-shadow:0 -2px 0 var(--cyan) inset}
+/* panels */
+.panel{border:1px solid var(--edge);background:var(--panel);position:relative;min-width:0}
+.panel::before,.panel::after{content:"";position:absolute;width:10px;height:10px;border-color:var(--edge2);border-style:solid}
+.panel::before{top:-1px;left:-1px;border-width:2px 0 0 2px}.panel::after{bottom:-1px;right:-1px;border-width:0 2px 2px 0}
+.ph{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:6px 10px;border-bottom:1px solid var(--edge);background:var(--panel2);font:700 11px var(--cond);letter-spacing:.22em;text-transform:uppercase;color:var(--dim)}
+.ph em{font:500 10.5px var(--mono);letter-spacing:.02em;text-transform:none;font-style:normal;color:var(--faint)}
+.ph .lamp{margin-right:7px}
+.lamp{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--go);box-shadow:0 0 6px var(--go);vertical-align:1px}
+.lamp.amber{background:var(--amber);box-shadow:0 0 6px var(--amber)}.lamp.nogo{background:var(--nogo);box-shadow:0 0 6px var(--nogo)}
+/* telemetry row */
+.tele{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px}
+.tm{padding:9px 11px 8px}
+.tm span{font:600 10.5px var(--cond);letter-spacing:.2em;text-transform:uppercase;color:var(--dim)}
+.tm b{display:block;font:500 28px/1.15 var(--mono);color:var(--go);text-shadow:0 0 10px rgba(61,220,132,.35);font-variant-numeric:tabular-nums;margin:2px 0}
+.tm i{font-style:normal;font-size:11px;color:var(--dim)}
+.tm svg{display:block;width:100%;height:34px;margin-top:4px}
+.tm svg .g{stroke:var(--faint);stroke-width:1;stroke-dasharray:2 3;vector-effect:non-scaling-stroke}
+.tm svg polyline{fill:none;stroke:var(--go);stroke-width:1.5;vector-effect:non-scaling-stroke}
+/* main deck */
+.deck{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1.5fr) minmax(0,.9fr);gap:10px;margin-top:10px}
+.log{list-style:none;margin:0;padding:6px 0}
+.log li{display:grid;grid-template-columns:64px 34px 1fr;gap:8px;padding:6px 10px;border-bottom:1px dashed #13253a}
+.log li:hover{background:#0f1d2b}
+.log .ts{color:var(--amber)}.log .src{color:var(--cyan)}
+.log a{color:var(--txt)}
+.screen{padding:10px}
+.screen svg{display:block;width:100%;height:auto}
+.legend{display:flex;gap:16px;flex-wrap:wrap;padding:0 10px 10px;font-size:11.5px;color:var(--dim)}
+.legend i{display:inline-block;width:14px;height:2px;margin-right:6px;vertical-align:3px}
+.poll{list-style:none;margin:0;padding:4px 0}
+.poll li{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;padding:5px 10px;border-bottom:1px dashed #13253a;font-size:12px}
+.poll b{font:700 11px var(--cond);letter-spacing:.14em;padding:1px 7px;border:1px solid currentColor}
+.go{color:var(--go)}.hold{color:var(--amber)}.no{color:var(--nogo)}
+.events{list-style:none;margin:0;padding:4px 0}
+.events li{padding:7px 10px;border-bottom:1px dashed #13253a}
+.events small{display:block;color:var(--dim);font-size:11px;margin-top:2px}
+/* stations */
+.stations{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:10px;margin-top:10px}
+.st{padding:9px 10px}
+.st .code{font:700 18px var(--cond);letter-spacing:.14em;color:var(--cyan)}
+.st .name{font:500 10px var(--cond);letter-spacing:.2em;color:var(--dim);text-transform:uppercase}
+.st .n{font:500 24px var(--mono);color:var(--amber);margin-top:4px}
+.st .n small{font-size:10px;color:var(--dim);margin-left:4px}
+.st p{margin:6px 0 0;font-size:11px;line-height:1.35;color:var(--txt);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+/* crawl */
+.crawl{margin-top:10px;border:1px solid var(--edge);background:var(--panel2);overflow:hidden;white-space:nowrap;display:flex}
+.crawl b{flex:none;background:var(--amber);color:#000;font:700 11px var(--cond);letter-spacing:.2em;padding:6px 12px}
+.crawl .track{flex:1;overflow:hidden;min-width:0}
+.crawl .track div{display:inline-block;padding:6px 0;animation:crawl 90s linear infinite;color:var(--txt)}
+.crawl span{margin:0 26px}.crawl span::before{content:"◆ ";color:var(--amber)}
+@keyframes crawl{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+@media (prefers-reduced-motion:reduce){.crawl .track div{animation:none}}
+@media (max-width:1200px){.tele{grid-template-columns:repeat(3,1fr)}.deck{grid-template-columns:1fr 1fr}.deck>:nth-child(2){grid-column:1/-1;order:-1}.stations{grid-template-columns:repeat(4,1fr)}}
+@media (max-width:700px){.wrap{padding:8px 10px}.top{grid-template-columns:1fr;gap:10px}.clocks{justify-content:space-between;gap:10px}.clk b{font-size:17px}.tele{grid-template-columns:1fr 1fr}.deck{grid-template-columns:1fr}.stations{grid-template-columns:1fr 1fr}.tm b{font-size:23px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="id"><div class="patch">IMT</div><div><b>India Master Tracker</b><span>Mission control · Economy</span></div></div>
+    <div class="clocks">
+      <div class="clk"><span>IST</span><b id="ist">--:--:--</b></div>
+      <div class="clk"><span>UTC</span><b id="utc">--:--:--</b></div>
+      <div class="clk met"><span>DATA AGE (T+)</span><b id="met">--</b></div>
+    </div>
+    <div class="status" id="status">Checking systems<small>&nbsp;</small></div>
+  </header>
+  <nav><a class="on" href="houston.html">Dashboard</a><a href="./#/daily">Daily updates</a><a href="./#/macro">India macro</a><a href="./#/states">States</a>
+    <details class="dd"><summary>Sectors ▾</summary><div><a href="./#/semiconductors">Semiconductors</a><a href="./#/electronics">Electronics</a><a href="./#/logistics">Logistics</a><a href="./#/textiles">Textiles</a><a href="./#/pharma">Pharma</a><a href="./#/energy">Energy</a><a href="./#/finance">Finance</a></div></details>
+    <a href="./#/sources">Sources</a><a class="exit" href="./#/dashboard">Exit mission control ✕</a></nav>
+
+  <section class="tele" id="tele" aria-label="Headline indicators"></section>
+
+  <section class="deck">
+    <div class="panel">
+      <div class="ph"><span><i class="lamp"></i>Comms log · daily picks</span><em id="logday"></em></div>
+      <ul class="log" id="log"></ul>
+    </div>
+    <div class="panel">
+      <div class="ph"><span><i class="lamp"></i>Main screen · prices and production</span><em>y/y %, last 24 months</em></div>
+      <div class="screen" id="screen"></div>
+      <div class="legend" id="legend"></div>
+      <div class="ph" style="border-top:1px solid var(--edge)"><span><i class="lamp amber"></i>Flight director · policy & regulators</span><em>official sources</em></div>
+      <ul class="events" id="events"></ul>
+    </div>
+    <div class="panel">
+      <div class="ph"><span>Go / No-go poll</span><em id="pollsum"></em></div>
+      <ul class="poll" id="poll"></ul>
+    </div>
+  </section>
+
+  <section class="stations" id="stations" aria-label="Sector stations"></section>
+  <div class="crawl" aria-hidden="true"><b>LIVE</b><span class="track"><div id="crawl"></div></span></div>
+</div>
+<script>
+"use strict";
+const $ = (t, a, ...k) => { const n = document.createElement(t); for (const [x, v] of Object.entries(a || {})) x === "class" ? n.className = v : n.setAttribute(x, v); n.append(...k.flat().filter((c) => c != null)); return n; };
+const get = (n) => fetch("data/" + n + ".json").then((r) => r.json());
+const fmt = (v) => v.toLocaleString("en-IN", { maximumFractionDigits: 2 });
+const MON = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
+const MONTHLY = new Set(["cpi", "wpi", "iip", "isp", "rbi_trade", "rbi_fx"]);
+const pl = (p, ds) => MONTHLY.has(ds) ? MON[+p.slice(5) - 1] + " " + p.slice(0, 4) : p.toUpperCase();
+const dd = (s) => s.slice(8, 10) + " " + MON[+s.slice(5, 7) - 1];
+const tidy = (t) => { const L = t.replace(/[^A-Za-z]/g, ""); return L.length > 12 && L === L.toUpperCase() ? t[0] + t.slice(1).toLowerCase() : t; };
+const NS = "http://www.w3.org/2000/svg";
+const S = (t, a) => { const n = document.createElementNS(NS, t); for (const k in a) n.setAttribute(k, a[k]); return n; };
+const SRC = (u) => { const h = (u || "").replace(/^https?:\/\/(www\.)?/, "").split("/")[0]; return h.includes("economictimes") ? "ET" : h.includes("business-standard") ? "BS" : h.includes("livemint") ? "MNT" : h.includes("moneycontrol") ? "MC" : h.includes("indianexpress") ? "IE" : h.includes("financialexpress") ? "FE" : h.includes("businessline") ? "BL" : h.includes("timesofindia") ? "TOI" : h.split(".")[0].slice(0, 3).toUpperCase(); };
+
+(async () => {
+  const [meta, news, picks, macro] = await Promise.all([get("meta"), get("news"), get("picks"), get("macro")]);
+
+  // clocks
+  const updated = new Date(meta.updated);
+  const tick = () => {
+    const now = new Date();
+    document.getElementById("ist").textContent = now.toLocaleTimeString("en-GB", { timeZone: "Asia/Kolkata", hour12: false });
+    document.getElementById("utc").textContent = now.toLocaleTimeString("en-GB", { timeZone: "UTC", hour12: false });
+    let s = Math.max(0, Math.floor((now - updated) / 1000)); const d = Math.floor(s / 86400); s %= 86400;
+    document.getElementById("met").textContent = d + "d " + [Math.floor(s / 3600), Math.floor(s % 3600 / 60), s % 60].map((x) => String(x).padStart(2, "0")).join(":");
+  };
+  tick(); setInterval(tick, 1000);
+
+  // go / no-go
+  const sources = [...Object.entries(meta.status).map(([k, v]) => ["Data · " + k, v.ok, "MoSPI/RBI"]), ...Object.entries(news.status).filter(([k]) => !k.startsWith("PIB ") || k === "PIB release pages").map(([k, v]) => [k, v.ok, "feed"])];
+  const pibOk = Object.entries(news.status).filter(([k]) => k.startsWith("PIB ") && k !== "PIB release pages");
+  sources.push(["PIB regional offices (" + pibOk.filter(([, v]) => v.ok).length + "/" + pibOk.length + ")", pibOk.every(([, v]) => v.ok), "feed"]);
+  const poll = document.getElementById("poll");
+  const short = (k) => k.replace("Reserve Bank of India", "RBI releases").replace("Securities and Exchange Board of India", "SEBI").replace("US Food and Drug Administration", "US FDA").replace("US Energy Information Administration", "US EIA").replace("World Health Organization", "WHO").replace("International Monetary Fund", "IMF").replace("World Trade Organization", "WTO").replace("Office of the US Trade Representative", "USTR").replace("US National Institute of Standards and Technology", "NIST").replace("Confederation of Indian Textile Industry", "CITI").replace("Clothing Manufacturers Association of India", "CMAI").replace("India Cellular & Electronics Association", "ICEA").replace("Apparel Export Promotion Council", "AEPC");
+  let go = 0;
+  for (const [k, ok] of sources) { if (ok) go++; poll.append($("li", null, $("span", null, short(k)), $("b", { class: ok ? "go" : "no" }, ok ? "GO" : "NO-GO"))); }
+  document.getElementById("pollsum").textContent = go + "/" + sources.length + " go";
+  const st = document.getElementById("status");
+  const allData = Object.values(meta.status).every((v) => v.ok);
+  const down = sources.length - go;
+  st.className = "status" + (allData && down <= 2 ? "" : " warn");
+  st.firstChild.textContent = !allData ? "Data systems degraded" : down <= 2 ? "All systems nominal" : "Data nominal · " + down + " feeds down";
+  st.querySelector("small").textContent = go + " of " + sources.length + " sources go";
+
+  // telemetry
+  const D = macro.dims, rows = macro.rows.map((r) => ({ ds: D.dataset[r[0]], geo: D.geo[r[1]], seg: D.segment[r[2]], ind: D.indicator[r[3]], p: r[5], v: r[6] }));
+  const series = (test) => rows.filter((r) => r.geo === "All India" && test(r)).sort((a, b) => a.p < b.p ? -1 : 1);
+  const defs = [
+    ["GDP growth Q", (r) => /GDP Growth Rate \(constant/.test(r.ind) && / Q\d$/.test(r.p), "%"],
+    ["GDP growth Y", (r) => /GDP Growth Rate \(constant/.test(r.ind) && !/ Q\d$/.test(r.p), "%"],
+    ["CPI inflation", (r) => r.ind.startsWith("CPI inflation") && r.seg === "CPI (General)", "%"],
+    ["IIP growth", (r) => r.ind.startsWith("IIP growth") && r.seg === "General", "%"],
+    ["Unemployment", (r) => r.ind === "Unemployment rate", "%"],
+    ["Trade bal.", (r) => /balance/i.test(r.ind) && r.ds === "rbi_trade", "bn"],
+  ];
+  const tele = document.getElementById("tele");
+  for (const [label, test, unit] of defs) {
+    const s = series(test); if (!s.length) continue;
+    const r = s[s.length - 1], v = s.slice(-14).map((x) => x.v);
+    let lo = Math.min(...v), hi = Math.max(...v); if (lo === hi) { lo--; hi++; }
+    const svg = S("svg", { viewBox: "0 0 100 34", preserveAspectRatio: "none" });
+    for (const y of [8, 17, 26]) svg.append(S("line", { class: "g", x1: 0, x2: 100, y1: y, y2: y }));
+    svg.append(S("polyline", { points: v.map((x, i) => (i * 100 / (v.length - 1)).toFixed(1) + "," + (3 + (hi - x) * 28 / (hi - lo)).toFixed(1)).join(" ") }));
+    const big = unit === "bn" ? (r.v < 0 ? "-" : "") + fmt(Math.round(Math.abs(r.v) / 100) / 10) + "B" : r.v.toFixed(r.v < 10 ? 2 : 1) + "%";
+    tele.append($("div", { class: "panel tm" }, $("span", null, label), $("b", null, big), $("i", null, "AS OF " + pl(r.p, r.ds)), svg));
+  }
+
+  // main screen: CPI vs IIP, 24 months
+  const cpi = series((r) => r.ind.startsWith("CPI inflation") && r.seg === "CPI (General)");
+  const iip = series((r) => r.ind.startsWith("IIP growth") && r.seg === "General");
+  const wpiAll = series((r) => r.ds === "wpi" && /^All commodities$/i.test(r.seg));
+  const periods = [...new Set([...cpi, ...iip].map((r) => r.p))].sort().slice(-24);
+  const lines = [["CPI inflation", cpi, "var(--amber)"], ["IIP growth", iip, "var(--go)"]];
+  const W = 760, H = 270, L = 40, R = 12, T = 12, B = 26;
+  const all = lines.flatMap(([, s]) => s.filter((r) => periods.includes(r.p)).map((r) => r.v));
+  let lo = Math.floor(Math.min(0, ...all)), hi = Math.ceil(Math.max(...all));
+  const x = (i) => L + i * (W - L - R) / (periods.length - 1), y = (v) => T + (hi - v) * (H - T - B) / (hi - lo);
+  const svg = S("svg", { viewBox: "0 0 " + W + " " + H, role: "img", "aria-label": "CPI inflation and IIP growth, last 24 months" });
+  for (let i = 0; i <= 6; i++) { const v = lo + (hi - lo) * i / 6; svg.append(S("line", { x1: L, x2: W - R, y1: y(v), y2: y(v), stroke: v === 0 ? "#3d5770" : "#13253a", "stroke-dasharray": v === 0 ? "" : "3 4" })); const t = S("text", { x: L - 6, y: y(v) + 4, "text-anchor": "end", fill: "#6f8ba3", "font-size": 10, "font-family": "IBM Plex Mono" }); t.textContent = v.toFixed(1); svg.append(t); }
+  periods.forEach((p, i) => { if (i % 4 === 0 || i === periods.length - 1) { svg.append(S("line", { x1: x(i), x2: x(i), y1: T, y2: H - B, stroke: "#13253a", "stroke-dasharray": "3 4" })); const t = S("text", { x: x(i), y: H - 8, "text-anchor": "middle", fill: "#6f8ba3", "font-size": 10, "font-family": "IBM Plex Mono" }); t.textContent = pl(p, "cpi").replace(" 20", " '"); svg.append(t); } });
+  const legend = document.getElementById("legend");
+  for (const [name, s, color] of lines) {
+    let d = "", pen = false; const by = Object.fromEntries(s.map((r) => [r.p, r.v]));
+    periods.forEach((p, i) => { const v = by[p]; if (v == null) { pen = false; return; } d += (pen ? "L" : "M") + x(i).toFixed(1) + " " + y(v).toFixed(1); pen = true; });
+    svg.append(S("path", { d, fill: "none", stroke: color, "stroke-width": 2, style: "filter:drop-shadow(0 0 3px " + color + ")" }));
+    const lastP = periods.filter((p) => by[p] != null).pop();
+    if (lastP) { const i = periods.indexOf(lastP); svg.append(S("circle", { cx: x(i), cy: y(by[lastP]), r: 3.5, fill: color })); }
+    legend.append($("span", null, $("i", { style: "background:" + color }), name + (lastP ? "  " + by[lastP].toFixed(2) + "% (" + pl(lastP, "cpi") + ")" : "")));
+  }
+  document.getElementById("screen").append(svg);
+
+  // flight director: macro developments
+  const ev = document.getElementById("events");
+  for (const r of news.items.filter((r) => r.sectors.some((s) => s === "macro" || s === "finance") && r.scope !== "State").slice(0, 10))
+    ev.append($("li", null, $("a", { href: r.url }, tidy(r.title)), $("small", null, dd(r.date) + " · " + short(r.publisher).replace(" releases", ""))));
+
+  // comms log
+  const days = [...new Set(picks.items.map((r) => r.date))].sort();
+  const day = days[days.length - 1];
+  document.getElementById("logday").textContent = picks.items.length.toLocaleString("en-IN") + " archived";
+  const log = document.getElementById("log");
+  for (const r of picks.items.filter((r) => days.slice(-3).includes(r.date)).slice(0, 11))
+    log.append($("li", null, $("span", { class: "ts" }, dd(r.date)), $("span", { class: "src" }, SRC(r.url)), $("a", { href: r.url || "#" }, r.title)));
+
+  // stations
+  const weekAgo = new Date(Date.now() - 7 * 864e5).toISOString().slice(0, 10);
+  const stations = document.getElementById("stations");
+  for (const [code, name, key] of [["SEMI", "Semiconductors", "semiconductors"], ["ELEC", "Electronics", "electronics"], ["LOGI", "Logistics", "logistics"], ["TXTL", "Textiles", "textiles"], ["PHRM", "Pharma", "pharma"], ["ENRG", "Energy", "energy"], ["FINC", "Finance", "finance"], ["STAT", "States", "state"]]) {
+    const rel = news.items.filter((r) => key === "state" ? r.scope === "State" : r.sectors.includes(key));
+    const wk = rel.filter((r) => r.date >= weekAgo).length;
+    stations.append($("a", { class: "panel st", href: key === "state" ? "./#/states" : "./#/" + key }, $("div", { class: "code" }, code), $("div", { class: "name" }, name),
+      $("div", { class: "n" }, String(wk).padStart(2, "0"), $("small", null, "THIS WK")), rel[0] ? $("p", null, tidy(rel[0].title)) : $("p", { style: "color:var(--dim)" }, "Standing by")));
+  }
+
+  // crawl
+  const items = news.items.slice(0, 14).map((r) => tidy(r.title));
+  const c = document.getElementById("crawl");
+  for (const t of [...items, ...items]) c.append($("span", null, t));
+})();
+</script>
+</body>
+</html>
