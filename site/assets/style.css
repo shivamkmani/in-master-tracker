@@ -127,5 +127,6 @@ a.more:hover{text-decoration:underline}
 .peek.in .peek-say{opacity:1}
 .peek.shoo .peek-say{opacity:0;transition-delay:0s}
 @media (max-width:640px){.peek,.peek svg{width:110px}}
+@media (prefers-reduced-motion:reduce){.peek,.peek-say{transition:none}}
 @media (max-width:1180px){#nav{justify-content:flex-start}}
 @media (max-width:640px){.tiles{grid-template-columns:1fr 1fr;gap:8px}.tile{padding:10px 12px}.tile b{font-size:21px}.spark{height:22px}.top-in{min-height:52px}.brand{font-size:18px}#nav{justify-content:flex-start}.wrap{padding:0 16px}.ms-btn{min-width:140px}h1{font-size:24px}.stamp{display:none}}
