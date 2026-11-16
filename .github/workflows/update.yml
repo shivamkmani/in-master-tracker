@@ -24,7 +24,9 @@ concurrency:
 jobs:
   update:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    # A full run with ASI takes over an hour (one request per state and
+    # industry, paced for MoSPI); daily runs finish in about 20 minutes.
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
