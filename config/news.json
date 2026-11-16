@@ -45,10 +45,26 @@
       "scope": "National",
       "url": "https://www.rbi.org.in/pressreleases_rss.xml",
       "default_sectors": [
-        "macro"
+        "finance"
       ],
       "require_match": false,
-      "title_only": true
+      "title_only": true,
+      "exclude": [
+        "auction",
+        "auction results",
+        "cut-off",
+        "treasury bills",
+        "money market operations",
+        "weekly statistical supplement",
+        "reverse repo",
+        "variable rate repo",
+        "underwriting",
+        "government stock",
+        "state government securities",
+        "sale of",
+        "conversion/switch",
+        "lost/stolen"
+      ]
     },
     {
       "id": "icea",
@@ -120,6 +136,46 @@
       "url": "https://www.nist.gov/news-events/news/rss.xml",
       "default_sectors": [],
       "require_match": true
+    },
+    {
+      "id": "sebi",
+      "name": "Securities and Exchange Board of India",
+      "type": "Government",
+      "scope": "National",
+      "url": "https://www.sebi.gov.in/sebirss.xml",
+      "default_sectors": [
+        "finance"
+      ],
+      "require_match": false,
+      "title_only": true
+    },
+    {
+      "id": "usfda",
+      "name": "US Food and Drug Administration",
+      "type": "Government",
+      "scope": "International",
+      "url": "https://www.fda.gov/about-fda/contact-fda/stay-informed/rss-feeds/press-releases/rss.xml",
+      "default_sectors": [],
+      "require_match": true
+    },
+    {
+      "id": "who",
+      "name": "World Health Organization",
+      "type": "International body",
+      "scope": "International",
+      "url": "https://www.who.int/rss-feeds/news-english.xml",
+      "default_sectors": [],
+      "require_match": true
+    },
+    {
+      "id": "imf",
+      "name": "International Monetary Fund",
+      "type": "International body",
+      "scope": "International",
+      "url": "https://www.imf.org/en/News/RSS?Language=ENG",
+      "default_sectors": [],
+      "require_match": true,
+      "title_only": true
     }
   ],
   "federal_register_agencies": [
@@ -282,6 +338,135 @@
         "fdi",
         "unemployment rate"
       ]
+    },
+    "pharma": {
+      "strong": [
+        "pharmaceutical",
+        "pharmaceuticals",
+        "pharma",
+        "bulk drug",
+        "bulk drugs",
+        "bulk drug park",
+        "bulk drug parks",
+        "medical device",
+        "medical devices",
+        "cdsco",
+        "drugs controller",
+        "drug regulator",
+        "generic medicines",
+        "jan aushadhi",
+        "biosimilar",
+        "biosimilars",
+        "vaccine",
+        "vaccines",
+        "active pharmaceutical ingredient",
+        "active pharmaceutical ingredients",
+        "usfda",
+        "us fda",
+        "pharmexcil",
+        "nppa",
+        "drug pricing",
+        "drug prices",
+        "clinical trial",
+        "clinical trials",
+        "biopharma",
+        "biopharmaceutical",
+        "pharmacopoeia",
+        "department of pharmaceuticals",
+        "new drug",
+        "drug approval",
+        "drug approvals"
+      ],
+      "weak": [
+        "drug",
+        "drugs",
+        "medicine",
+        "medicines",
+        "api",
+        "apis",
+        "formulations",
+        "healthcare",
+        "biotech",
+        "biotechnology",
+        "fda"
+      ]
+    },
+    "finance": {
+      "strong": [
+        "sebi",
+        "reserve bank",
+        "rbi",
+        "irdai",
+        "pfrda",
+        "nbfc",
+        "nbfcs",
+        "bank credit",
+        "banking sector",
+        "public sector banks",
+        "public sector bank",
+        "financial inclusion",
+        "insurance sector",
+        "mutual fund",
+        "mutual funds",
+        "stock exchange",
+        "stock exchanges",
+        "capital market",
+        "capital markets",
+        "ipo",
+        "ipos",
+        "gift city",
+        "ifsc",
+        "ifsca",
+        "upi",
+        "digital payments",
+        "payment system",
+        "payment systems",
+        "financial services",
+        "financial sector",
+        "insolvency",
+        "ibc",
+        "credit growth",
+        "bank deposits",
+        "monetary policy",
+        "repo rate",
+        "financial stability",
+        "non-performing assets",
+        "npa",
+        "npas",
+        "fintech",
+        "microfinance",
+        "pradhan mantri jan dhan",
+        "jan dhan",
+        "government securities",
+        "bond market",
+        "corporate bonds",
+        "foreign portfolio",
+        "fpi",
+        "fpis",
+        "deposit insurance",
+        "dicgc",
+        "nabard",
+        "sidbi",
+        "exim bank",
+        "mudra"
+      ],
+      "weak": [
+        "bank",
+        "banks",
+        "banking",
+        "insurance",
+        "insurer",
+        "insurers",
+        "loan",
+        "loans",
+        "lending",
+        "credit",
+        "pension",
+        "bonds",
+        "securities",
+        "investors",
+        "financial"
+      ]
     }
   },
   "state_aliases": {
@@ -436,6 +621,13 @@
   "exclude_title_patterns": [
     "our members",
     "garment hangers",
-    "port call"
+    "port call",
+    "drugs seized",
+    "drug trafficking",
+    "drug peddlers",
+    "narcotics",
+    "drug abuse",
+    "drug-free",
+    "drug free"
   ]
 }

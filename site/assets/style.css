@@ -70,4 +70,27 @@ td.seg{min-width:170px}
 .news small{display:block;color:var(--ink3);font-size:12px;margin-top:2px}
 .src-table td,.src-table th{font-size:14px}
 .ok{color:var(--ink2)}.ok::before{content:"✓ "}.fail{color:var(--bad);font-weight:600}.fail::before{content:"✕ "}
-@media (max-width:640px){.wrap{padding:0 16px}.ms-btn{min-width:140px}h1{font-size:24px}.stamp{display:none}}
+.daily{grid-template-columns:minmax(0,1fr) 340px}
+@media (max-width:1100px){.daily{grid-template-columns:minmax(0,1fr)}}
+.side input[type=search]{width:100%;margin-bottom:14px}
+.picks{max-height:none;overflow:visible}
+.picks .t{font-weight:550}
+.sec-h{font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink3);margin:18px 0 2px}
+.day-h{font-size:15px;margin:18px 0 2px}
+.count{font-size:13px;margin:0 0 4px}
+.note{font-size:13px;color:var(--ink2);background:var(--line2);padding:7px 10px;border-radius:6px;margin:0 0 10px}
+button.link{border:0;background:none;padding:0;min-height:0;color:var(--accent);font:inherit;font-weight:600;cursor:pointer}
+button.link:hover{text-decoration:underline}
+button:disabled{opacity:.45;cursor:default}
+.cal-h{display:flex;justify-content:space-between;align-items:center;gap:6px;margin-bottom:6px}
+.cal-h select{flex:1;text-align:center}
+.cal-h button{min-width:34px;font-size:16px}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+.cal-grid .dow{font-size:11px;color:var(--ink3);text-align:center;padding:2px 0}
+.cal-grid .day{min-height:36px;padding:0;border-color:transparent;background:none;color:var(--ink3);position:relative;font-variant-numeric:tabular-nums}
+.cal-grid .day.has{color:var(--ink);font-weight:600;background:var(--line2)}
+.cal-grid .day.has::after{content:"";position:absolute;left:50%;bottom:4px;width:4px;height:4px;margin-left:-2px;border-radius:50%;background:var(--accent)}
+.cal-grid .day.today{border-color:var(--ink3)}
+.cal-grid .day.sel{background:var(--accent);color:var(--surface);border-color:var(--accent)}
+.cal-grid .day.sel::after{background:var(--surface)}
+@media (max-width:640px){.top-in{gap:4px 12px;padding:8px 0 4px}nav{flex:0 0 100%;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin:0 -16px;padding:0 16px 4px}nav a{white-space:nowrap}.wrap{padding:0 16px}.ms-btn{min-width:140px}h1{font-size:24px}.stamp{display:none}}

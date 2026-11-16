@@ -76,6 +76,31 @@ const PAGES = {
       ["Exports", { ds: ["rbi_commodity"], ind: /Exports/, freq: "Annual" }],
     ],
   },
+  pharma: {
+    label: "Pharma", news: "pharma",
+    lede: "Production, prices, trade and factory data for pharmaceuticals, with regulatory and industry developments in India and abroad.",
+    caveat: "The factory data is ASI NIC 21 (pharmaceuticals, medicinal chemicals and botanical products) for registered factories. It covers 2014-15 to 2023-24 and only refreshes when ASI is re-run. Trade figures are national and annual. Health CPI covers what households spend on healthcare, not drug prices alone.",
+    presets: [
+      ["Production index", { ds: ["iip"], ind: /IIP growth/, freq: "Monthly" }],
+      ["Wholesale prices", { ds: ["wpi"], freq: "Monthly" }],
+      ["Exports and imports", { ds: ["rbi_commodity"], freq: "Annual" }],
+      ["Health CPI inflation", { ds: ["cpi"], ind: /CPI inflation/, freq: "Monthly" }],
+      ["GVA by state", { ds: ["asi"], ind: /^Gross Value Added$/, seg: /^NIC 21:/, freq: "Annual" }],
+      ["Jobs by state", { ds: ["asi"], ind: /Persons Engaged/, seg: /^NIC 21:/, freq: "Annual" }],
+    ],
+  },
+  finance: {
+    label: "Finance", news: "finance",
+    lede: "Banking, insurance and financial services: value added nationally and by state, monthly service output, reserves, and developments from RBI, SEBI and others.",
+    caveat: "Bank credit, deposits and interest rates aren't included yet: RBI publishes them on its own database, which this site doesn't read yet. State financial services GVA uses a 2011-12 base, while the national series uses 2022-23. Banking and insurance service output (ISP) starts in 2025-26.",
+    presets: [
+      ["Financial services GVA", { ds: ["nas"], ind: /Gross Value Added \(constant/, freq: "Annual" }],
+      ["Financial services growth", { ds: ["nas"], ind: /GVA Growth Rate \(constant/, freq: "Annual" }],
+      ["State financial services GVA", { ds: ["gsva"], ind: /constant/, freq: "Annual" }],
+      ["Banking and insurance output", { ds: ["isp"], ind: /ISP growth/, freq: "Monthly" }],
+      ["Foreign exchange reserves", { ds: ["rbi_fx"], freq: "Monthly" }],
+    ],
+  },
 };
 
 const MONTHLY = new Set(["cpi", "wpi", "iip", "isp", "rbi_trade", "rbi_fx"]);
@@ -83,7 +108,7 @@ const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct
 const MAX_ROWS = 300;
 const MAX_SERIES = 6;
 
-const G = { meta: null, news: null, cache: {}, focus: "" };
+const G = { meta: null, news: null, picks: null, cache: {}, focus: "" };
 let V = null; // state of the current page
 
 const el = (tag, props, ...kids) => {
@@ -238,7 +263,7 @@ function saveHash() {
 }
 function readHash() {
   const [path, query] = location.hash.replace(/^#\/?/, "").split("?");
-  return { page: path || "macro", q: new URLSearchParams(query || "") };
+  return { page: path || "daily", q: new URLSearchParams(query || "") };
 }
 
 /* ---------- multi-select ---------- */
@@ -540,15 +565,173 @@ function showSources() {
     el("section", { class: "card" }, el("div", { class: "card-h" }, el("h2", null, "News feeds")), el("div", { class: "tablebox" }, feeds)));
 }
 
+/* ---------- daily updates: hand-picked articles, one list per day ---------- */
+const localISO = (d) => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+const longDate = (s) => new Date(s + "T00:00:00").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+const safeUrl = (u) => /^https?:\/\//i.test(u || "") ? u : null;
+const MONTHS_LONG = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+function pickLine(r) {
+  const url = safeUrl(r.url);
+  const meta = [r.source, r.note].filter(Boolean).join(" · ");
+  return el("li", null,
+    url ? el("a", { href: url, target: "_blank", rel: "noopener" }, r.title) : el("span", { class: "t" }, r.title),
+    meta ? el("small", null, meta) : null);
+}
+
+/* Keep the document's own order and section headings within a day. */
+function groupBySection(rows) {
+  const out = new Map();
+  for (const r of rows) {
+    const k = r.section || "";
+    if (!out.has(k)) out.set(k, []);
+    out.get(k).push(r);
+  }
+  return out;
+}
+
+function showDaily(q) {
+  const items = (G.picks && G.picks.items) || [];
+  const byDate = new Map();
+  for (const r of items) {
+    if (!byDate.has(r.date)) byDate.set(r.date, []);
+    byDate.get(r.date).push(r);
+  }
+  const dates = [...byDate.keys()].sort();
+  const today = localISO(new Date());
+  const fallback = byDate.has(today) || !dates.length ? today : dates[dates.length - 1];
+  const D = { date: q.get("d") || fallback, q: q.get("q") || "", auto: !q.get("d") };
+  D.month = D.date.slice(0, 7);
+  V = { page: "daily" };
+
+  const main = el("section", { class: "card", "aria-label": "Articles" });
+  const side = el("aside", { class: "card side", "aria-label": "Search and calendar" });
+  const search = el("input", { type: "search", placeholder: "Search all article titles", value: D.q, "aria-label": "Search all article titles" });
+  const cal = el("div", { class: "cal" });
+  let timer = null;
+  search.addEventListener("input", () => {
+    clearTimeout(timer);
+    timer = setTimeout(() => { D.q = search.value.trim(); save(); drawMain(); }, 150);
+  });
+
+  function save() {
+    const p = new URLSearchParams();
+    if (!D.auto) p.set("d", D.date);
+    if (D.q) p.set("q", D.q);
+    history.replaceState(null, "", "#/daily" + (p.toString() ? "?" + p : ""));
+  }
+  function go(date) {
+    D.date = date; D.month = date.slice(0, 7); D.auto = false; D.q = ""; search.value = "";
+    save(); drawMain(); drawCal();
+  }
+  const adjacent = (dir) => dir < 0 ? dates.filter((d) => d < D.date).pop() : dates.find((d) => d > D.date);
+
+  function copyRows(rows) {
+    return rows.map((r) => [r.date, r.title, r.source || "", r.url || ""].join("\t")).join("\n");
+  }
+
+  function drawMain() {
+    main.replaceChildren();
+    if (!items.length) {
+      main.append(el("p", { class: "empty" }, "No articles loaded yet. Once your daily updates document is imported, each day's picks appear here."));
+      return;
+    }
+    if (D.q) {
+      const t = D.q.toLowerCase();
+      const hits = items.filter((r) => (r.title + " " + (r.source || "") + " " + (r.note || "")).toLowerCase().includes(t))
+        .sort((a, b) => a.date < b.date ? 1 : a.date > b.date ? -1 : 0);
+      main.append(el("div", { class: "card-h" },
+        el("h2", null, hits.length + (hits.length === 1 ? " article matches " : " articles match ") + "“" + D.q + "”"),
+        el("div", { class: "actions" },
+          el("button", { type: "button", onclick: (e) => copy(copyRows(hits), e.target) }, "Copy results"),
+          el("button", { type: "button", onclick: () => { D.q = ""; search.value = ""; save(); drawMain(); } }, "Clear search"))));
+      if (!hits.length) main.append(el("p", { class: "empty" }, "No titles match. Try a shorter word."));
+      const groups = new Map();
+      for (const r of hits.slice(0, 400)) {
+        if (!groups.has(r.date)) groups.set(r.date, []);
+        groups.get(r.date).push(r);
+      }
+      for (const [d, rows] of groups) {
+        main.append(el("h3", { class: "day-h" }, el("button", { type: "button", class: "link", onclick: () => go(d) }, longDate(d))),
+          el("ul", { class: "news picks" }, rows.map(pickLine)));
+      }
+      if (hits.length > 400) main.append(el("p", { class: "cite" }, "Showing the latest 400 matches. Narrow the search to see older ones."));
+      return;
+    }
+    const rows = byDate.get(D.date) || [];
+    const prev = adjacent(-1), next = adjacent(1);
+    main.append(el("div", { class: "card-h" },
+      el("h2", null, longDate(D.date)),
+      el("div", { class: "actions" },
+        el("button", { type: "button", disabled: !prev, title: prev ? dateLabel(prev) : "", onclick: () => go(prev) }, "← Earlier"),
+        el("button", { type: "button", disabled: !next, title: next ? dateLabel(next) : "", onclick: () => go(next) }, "Later →"),
+        D.date !== today ? el("button", { type: "button", onclick: () => go(today) }, "Today") : null,
+        rows.length ? el("button", { type: "button", onclick: (e) => copy(copyRows(rows), e.target) }, "Copy list") : null)));
+    if (D.auto && D.date !== today) {
+      main.append(el("p", { class: "note" }, "Nothing picked for today yet, so this shows the latest day with articles."));
+    }
+    if (!rows.length) {
+      main.append(el("p", { class: "empty" }, "No articles were picked on this day." + (prev ? " Use Earlier, or pick a marked day in the calendar." : "")));
+      return;
+    }
+    main.append(el("p", { class: "muted count" }, rows.length + (rows.length === 1 ? " article" : " articles")));
+    for (const [sec, list] of groupBySection(rows)) {
+      if (sec) main.append(el("h3", { class: "sec-h" }, sec));
+      main.append(el("ul", { class: "news picks" }, list.map(pickLine)));
+    }
+  }
+
+  function drawCal() {
+    const [y, m] = D.month.split("-").map(Number);
+    const startDow = (new Date(y, m - 1, 1).getDay() + 6) % 7;
+    const days = new Date(y, m, 0).getDate();
+    const shift = (n) => {
+      const d = new Date(y, m - 1 + n, 1);
+      D.month = localISO(d).slice(0, 7);
+      drawCal();
+    };
+    const first = dates[0], last = dates[dates.length - 1];
+    const grid = el("div", { class: "cal-grid", role: "grid" },
+      ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"].map((d) => el("span", { class: "dow", "aria-hidden": "true" }, d)));
+    for (let i = 0; i < startDow; i++) grid.append(el("span"));
+    for (let d = 1; d <= days; d++) {
+      const iso = D.month + "-" + String(d).padStart(2, "0");
+      const n = (byDate.get(iso) || []).length;
+      const cls = ["day", n ? "has" : "", iso === D.date && !D.q ? "sel" : "", iso === today ? "today" : ""].filter(Boolean).join(" ");
+      grid.append(el("button", { type: "button", class: cls, "aria-label": longDate(iso) + (n ? ", " + n + (n === 1 ? " article" : " articles") : ", no articles"), onclick: () => go(iso) }, String(d)));
+    }
+    const monthSel = el("select", { "aria-label": "Jump to month", onchange: (e) => { D.month = e.target.value; drawCal(); } },
+      uniq(dates.map((d) => d.slice(0, 7)).concat([today.slice(0, 7), D.month])).sort().reverse().map((mo) =>
+        el("option", { value: mo, selected: mo === D.month }, MONTHS_LONG[+mo.slice(5) - 1] + " " + mo.slice(0, 4))));
+    cal.replaceChildren(
+      el("div", { class: "cal-h" },
+        el("button", { type: "button", "aria-label": "Previous month", onclick: () => shift(-1) }, "‹"),
+        monthSel,
+        el("button", { type: "button", "aria-label": "Next month", onclick: () => shift(1) }, "›")),
+      grid,
+      el("p", { class: "cite" }, items.length
+        ? items.length.toLocaleString("en-IN") + " articles over " + dates.length + " days, " + dateLabel(first) + " to " + dateLabel(last) + ". Marked days have articles."
+        : "Marked days will show where articles exist."));
+  }
+
+  side.append(el("div", { class: "card-h" }, el("h2", null, "Find articles")), search, cal);
+  document.getElementById("app").replaceChildren(
+    el("h1", null, "Daily updates"),
+    el("p", { class: "lede" }, "News and policy updates picked each day. Pick a date for past days, or search every title."),
+    el("div", { class: "grid daily" }, main, side));
+  save(); drawMain(); drawCal();
+}
+
 async function route() {
   const { page, q } = readHash();
-  const name = PAGES[page] || page === "sources" ? page : "macro";
+  const name = PAGES[page] || page === "sources" || page === "daily" ? page : "daily";
   document.querySelectorAll("nav a").forEach((a) => {
     if (a.dataset.p === name) a.setAttribute("aria-current", "page");
     else a.removeAttribute("aria-current");
   });
   try {
     if (name === "sources") showSources();
+    else if (name === "daily") showDaily(q);
     else await showData(name, q);
   } catch (e) {
     document.getElementById("app").replaceChildren(el("p", { class: "empty" }, "Couldn't load this page: " + e.message));
@@ -557,12 +740,13 @@ async function route() {
 
 async function start() {
   const nav = document.getElementById("nav");
-  for (const [k, p] of [...Object.entries(PAGES), ["sources", { label: "Sources" }]]) {
+  for (const [k, p] of [["daily", { label: "Daily updates" }], ...Object.entries(PAGES), ["sources", { label: "Sources" }]]) {
     nav.append(el("a", { href: "#/" + k, "data-p": k }, p.label));
     nav.lastChild.dataset.p = k;
   }
   try {
-    [G.meta, G.news] = await Promise.all([getJSON("meta"), getJSON("news")]);
+    [G.meta, G.news, G.picks] = await Promise.all([getJSON("meta"), getJSON("news"),
+      getJSON("picks").catch(() => ({ items: [] }))]);
   } catch (e) {
     document.getElementById("app").replaceChildren(el("p", { class: "empty" }, "Data files are missing. Run the pipeline first. (" + e.message + ")"));
     return;

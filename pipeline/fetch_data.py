@@ -53,23 +53,30 @@ ASI_SECTORS = {
     "semiconductors": ["261"],
     "electronics": ["26", "261", "262", "263", "264", "265", "266", "267", "268"],
     "textiles": ["13", "131", "139", "14", "141", "142", "143", "15", "151", "152"],
+    "pharma": ["21", "210"],
 }
 IIP_RX = {
     "electronics": re.compile(r"computer, electronic|electrical equipment", re.I),
     "semiconductors": re.compile(r"computer, electronic", re.I),
     "textiles": re.compile(r"textiles|wearing apparel|leather", re.I),
+    "pharma": re.compile(r"pharmaceutical", re.I),
 }
 WPI_RX = {
     "electronics": re.compile(r"computer, electronic|electrical equipment", re.I),
     "semiconductors": re.compile(r"computer, electronic", re.I),
     "textiles": re.compile(r"textiles|wearing apparel|leather", re.I),
+    "pharma": re.compile(r"pharmaceutical", re.I),
 }
 ISP_LOGISTICS = re.compile(r"rail|road|water transport|air transport|warehousing|postal|courier", re.I)
 GSVA_LOGISTICS = re.compile(r"transport|storage|railway", re.I)
+ISP_FINANCE = re.compile(r"^(banking|insurance)$", re.I)
+NAS_FINANCE = re.compile(r"^financial", re.I)
+CPI_HEALTH = re.compile(r"^health$", re.I)
 COMMODITY_RX = {
     "electronics": re.compile(r"electronic", re.I),
     "semiconductors": re.compile(r"electronic", re.I),
     "textiles": re.compile(r"cotton|textile|garment|jute|carpet|handicraft|leather|man-?made|silk|yarn", re.I),
+    "pharma": re.compile(r"pharma", re.I),
 }
 
 
@@ -395,34 +402,43 @@ def main():
             status["ASI"] = {"ok": False, "error": str(exc)[:200]}
             print("FAILED ASI: %s" % exc)
 
-    prior = {n: previous(n) for n in ("macro", "states", "semiconductors", "electronics", "logistics", "textiles")}
+    prior = {n: previous(n) for n in ("macro", "states", "semiconductors", "electronics", "logistics", "textiles", "pharma")}
 
     def get(part, file, ds):
-        """Fresh rows if this run got them, else last good rows for that dataset."""
+        """Fresh rows if this run got them, else last good rows for that dataset.
+        `file` may be a tuple: CPI and PLFS keep national rows in macro and
+        state rows in states, so both are needed to restore them."""
         if part in parts:
             return parts[part]
-        return [r for r in prior[file] if r[0] == ds]
+        files = file if isinstance(file, tuple) else (file,)
+        return [r for f in files for r in prior[f] if r[0] == ds]
 
     def sel(rows, rx, seg_col=2):
         return [r for r in rows if rx.search(r[seg_col])]
 
     iip, wpi = get("iip", "macro", "iip"), get("wpi", "macro", "wpi")
     commodity = get("rbi_commodity", "macro", "rbi_commodity")
-    state_cpi = [r for r in get("cpi", "macro", "cpi") if r[1] != INDIA]
-    india_cpi = [r for r in get("cpi", "macro", "cpi") if r[1] == INDIA]
+    state_cpi = [r for r in get("cpi", ("macro", "states"), "cpi") if r[1] != INDIA]
+    india_cpi = [r for r in get("cpi", ("macro", "states"), "cpi") if r[1] == INDIA]
     isp = get("isp", "macro", "isp")
-    plfs = get("plfs", "macro", "plfs")
+    plfs = get("plfs", ("macro", "states"), "plfs")
 
     write("macro", "India macro", get("nas", "macro", "nas") + india_cpi + iip + wpi + isp
           + [r for r in plfs if r[1] == INDIA] + get("rbi_trade", "macro", "rbi_trade")
           + get("rbi_fx", "macro", "rbi_fx") + commodity, status)
     write("states", "States", get("gsdp", "states", "gsdp") + get("gsva", "states", "gsva") + state_cpi
           + [r for r in plfs if r[1] != INDIA], status)
-    for sector, title in (("semiconductors", "Semiconductors"), ("electronics", "Electronics"), ("textiles", "Textiles")):
+    for sector, title in (("semiconductors", "Semiconductors"), ("electronics", "Electronics"), ("textiles", "Textiles"),
+                          ("pharma", "Pharmaceuticals")):
         write(sector, title,
               get("asi_" + sector, sector, "asi") + sel(iip, IIP_RX[sector]) + sel(wpi, WPI_RX[sector])
-              + sel(commodity, COMMODITY_RX[sector]), status)
+              + sel(commodity, COMMODITY_RX[sector])
+              + (sel(india_cpi + state_cpi, CPI_HEALTH) if sector == "pharma" else []), status)
     write("logistics", "Logistics", sel(isp, ISP_LOGISTICS) + get("gsva_logistics", "logistics", "gsva"), status)
+    write("finance", "Financial sector",
+          [r for r in get("nas", "macro", "nas") if NAS_FINANCE.search(r[2])]
+          + sel(get("gsva", "states", "gsva"), NAS_FINANCE) + sel(isp, ISP_FINANCE)
+          + get("rbi_fx", "macro", "rbi_fx"), status)
 
     meta_path = os.path.join(DATA, "meta.json")
     if os.path.exists(meta_path):  # keep the last known status of anything not run now

@@ -203,6 +203,18 @@ def collect_pib(known, status):
     return records
 
 
+_FEED_EXCLUDE = {}
+
+
+def feed_excluded(feed, title):
+    """Per-feed noise filter, e.g. RBI's routine auction notices."""
+    if not feed.get("exclude"):
+        return False
+    if feed["id"] not in _FEED_EXCLUDE:
+        _FEED_EXCLUDE[feed["id"]] = compile_terms(feed["exclude"])
+    return bool(_FEED_EXCLUDE[feed["id"]].search(title))
+
+
 def collect_feed(feed, status):
     records = []
     try:
@@ -218,7 +230,7 @@ def collect_feed(feed, status):
         date = iso(it.get("date"))
         if not (title and link and date):
             continue
-        if EXCLUDE_RX.search(title):
+        if EXCLUDE_RX.search(title) or feed_excluded(feed, title):
             continue
         sectors = classify(title, "" if feed.get("title_only") else body)
         if feed["require_match"] and not sectors:
