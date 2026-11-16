@@ -54,7 +54,7 @@ ASI_SECTORS = {
     "electronics": ["26", "261", "262", "263", "264", "265", "266", "267", "268"],
     "textiles": ["13", "131", "139", "14", "141", "142", "143", "15", "151", "152"],
     "pharma": ["21", "210"],
-    "energy": ["19", "191", "192", "35", "351", "352"],
+    "energy": ["19", "191", "192"],  # ASI returns nothing for NIC 35 (electricity)
 }
 IIP_RX = {
     "electronics": re.compile(r"computer, electronic|electrical equipment", re.I),

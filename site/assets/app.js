@@ -92,7 +92,7 @@ const PAGES = {
   energy: {
     label: "Energy", news: "energy",
     lede: "Oil, gas, coal and power: production and price indices, trade, value added by state, and developments in India and abroad.",
-    caveat: "Physical volumes (crude and gas output, refinery throughput, power generation in units, installed capacity) aren't included yet: PPAC and CEA publish them outside MoSPI, so the IIP electricity and fuel-mineral indices are the closest monthly measures. State figures use a 2011-12 base. Refinery and power-plant factory data (ASI NIC 19 and 35) appears after the next full ASI run.",
+    caveat: "Physical volumes (crude and gas output, refinery throughput, power generation in units, installed capacity) aren't included yet: PPAC and CEA publish them outside MoSPI, so the IIP electricity and fuel-mineral indices are the closest monthly measures. State figures use a 2011-12 base. Refinery factory data is ASI NIC 19 (coke and refined petroleum) for 2014-15 to 2023-24; ASI returns no data for power plants (NIC 35).",
     presets: [
       ["Power output growth", { ds: ["iip"], ind: /IIP growth/, seg: /Electricity/, freq: "Monthly" }],
       ["Renewable vs other power", { ds: ["iip"], ind: /IIP index/, seg: /Renewable Electricity$/, freq: "Monthly" }],

@@ -49,5 +49,6 @@ python3 -m http.server 8765 --directory site
 - MoSPI's copy of RBI monthly trade and reserves data ended at June 2025 when this was built.
 - India has no official semiconductor output series. NIC 261 is used as the closest proxy.
 - Finance has no bank credit, deposit or interest rate series yet. RBI publishes these on its own database (DBIE), which the pipeline does not read.
-- Pharma, refinery and power-plant factory data (ASI NIC 21, 19 and 35) appears after the next full run with "Also refresh ASI" ticked.
+- ASI returns no data for power plants (NIC 35), so Energy has refinery (NIC 19) factory data only.
+- IMF and OPEC block automated access to their news feeds.
 - Energy has no physical volumes yet (crude and gas output, refinery throughput, power generation, capacity). PPAC and CEA publish these outside MoSPI.
