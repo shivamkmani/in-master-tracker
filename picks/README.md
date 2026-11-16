@@ -1,5 +1,16 @@
 # Daily updates document
 
+**Easiest:** use the site's editor page (`#/editor`, linked in the footer).
+Paste the day's list straight from Word, Google Docs or email, check the
+preview and publish. It saves a small file to `picks/inbox/`, which the next
+workflow run merges into the archive (usually within 2 minutes). The editor
+can also remove articles already on the site.
+
+The editor signs in with a GitHub fine-grained token that has **Contents:
+Read and write** on this repository only. The token stays in the browser.
+
+## Uploading the whole document instead
+
 Upload the latest copy of the daily news/policy updates document here as a
 `.docx` (on GitHub: **Add file → Upload files**, then **Commit changes**).
 The site picks it up within a few minutes, and again on every daily refresh.

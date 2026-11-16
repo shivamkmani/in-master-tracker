@@ -17,7 +17,7 @@ Each data section has a table builder (filter, sort, chart, export) and a develo
 | `pipeline/fetch_data.py` | Pulls MoSPI and RBI series into `site/data/*.json`. Add `--skip-asi` to reuse ASI, which changes once a year. |
 | `pipeline/fetch_news.py` | Reads PIB, RBI, trade association and international feeds, tags each item by sector and state. |
 | `pipeline/backfill_news.py N` | Reads the PIB archive by ministry for the last N months. |
-| `pipeline/import_picks.py` | Reads the daily updates document (`.docx` in `picks/`) into `site/data/picks.json`. `--dry-run` previews it. |
+| `pipeline/import_picks.py` | Reads the daily updates document (`.docx` in `picks/`) and editor submissions (`picks/inbox/*.json`, written by the site's `#/editor` page) into `site/data/picks.json`. `--dry-run` previews it. |
 | `pipeline/retag_news.py` | Re-applies sector tags to stored developments after `config/news.json` keywords change. |
 | `config/news.json` | Feeds, sector keywords and state aliases. Edit this to change what gets picked up. |
 | `site/` | The website. Plain HTML, CSS and JavaScript, no build step. |

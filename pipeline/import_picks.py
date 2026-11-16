@@ -32,6 +32,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(ROOT, "site", "data", "picks.json")
 CFG = os.path.join(ROOT, "config", "picks.json")
 INBOX = os.path.join(ROOT, "picks")
+INBOX_DIR = os.path.join(INBOX, "inbox")
 
 W = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
 R = "{http://schemas.openxmlformats.org/officeDocument/2006/relationships}"
@@ -257,27 +258,58 @@ def load_source(arg):
     return None, None
 
 
+def read_inbox():
+    """Files the site's editor page writes to picks/inbox/: {"add": [...], "remove": [...]}.
+
+    Each added item has date, title and url, plus optional more (extra
+    links) and section. Sources are filled in here so the names stay
+    consistent with document imports."""
+    adds, removes, files = [], [], sorted(glob.glob(os.path.join(INBOX_DIR, "*.json")))
+    for path in files:
+        try:
+            data = json.load(open(path, encoding="utf8"))
+        except ValueError as exc:
+            print("picks: skipped unreadable %s (%s)" % (os.path.basename(path), exc))
+            continue
+        for r in data.get("add", []):
+            if not (r.get("date") and r.get("title")) or not re.match(r"^\d{4}-\d{2}-\d{2}$", r["date"]):
+                continue
+            url = unwrap(r.get("url") or "")
+            url = url if re.match(r"^https?://", url) else ""
+            more = [unwrap(u) for u in r.get("more", []) if re.match(r"^https?://", u or "") and unwrap(u) != url]
+            item = {"date": r["date"], "title": str(r["title"]).strip()[:600], "url": url,
+                    "source": source_for(url) if url else "", "section": str(r.get("section") or "")[:80], "note": ""}
+            if more:
+                item["more"] = [{"url": u, "source": source_for(u)} for u in more]
+            adds.append(item)
+        removes += [(r["date"], r.get("url") or r.get("title") or "") for r in data.get("remove", []) if r.get("date")]
+    return adds, removes, files
+
+
 def main():
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     dry = "--dry-run" in sys.argv
     raw, name = load_source(args[0] if args else None)
-    if raw is None:
-        print("picks: no document found (add a .docx to picks/ or a google_doc_url to config/picks.json)")
+    new = parse(raw) if raw is not None else []
+    inbox, removes, inbox_files = read_inbox()
+    if raw is None and not inbox_files:
+        print("picks: nothing to import (no .docx in picks/, no editor submissions in picks/inbox/)")
         return 0
-    new = parse(raw)
     if dry:
-        for r in new:
+        for r in new + inbox:
             print(r["date"], "|", r["section"][:20], "|", r["title"][:90], "|", r["source"], "|", r["note"][:40])
-        print("picks: %d items over %d days from %s (dry run)" % (len(new), len({r["date"] for r in new}), name))
+        print("picks: %d from document, %d from editor, %d removals (dry run)" % (len(new), len(inbox), len(removes)))
         return 0
     existing = json.load(open(OUT, encoding="utf8")).get("items", []) if os.path.exists(OUT) else []
     key = lambda r: (r["date"], r.get("url") or r["title"])  # noqa: E731
     merged = {key(r): r for r in existing}
     order = {}
-    for i, r in enumerate(new):
+    for i, r in enumerate(new + inbox):
         merged[key(r)] = r
         order[key(r)] = i
-    # Newest day first; within a day keep the document's order.
+    for k in removes:
+        merged.pop(k, None)
+    # Newest day first; within a day keep the order they were added in.
     items = sorted(merged.values(), key=lambda r: (r["date"], -order.get(key(r), 10**6)), reverse=True)
     # Empty fields are left out to keep the file small; the site treats a
     # missing field as empty.
@@ -285,8 +317,10 @@ def main():
     payload = {"updated": dt.datetime.now(dt.timezone.utc).isoformat(timespec="minutes"), "items": items}
     with open(OUT, "w", encoding="utf8") as fh:
         json.dump(payload, fh, ensure_ascii=False, separators=(",", ":"))
-    print("picks: %d items over %d days (%d read from %s)" % (
-        len(items), len({r["date"] for r in items}), len(new), name))
+    for path in inbox_files:
+        os.remove(path)
+    print("picks: %d items over %d days (%d from %s, %d from editor, %d removed)" % (
+        len(items), len({r["date"] for r in items}), len(new), name or "no document", len(inbox), len(removes)))
     return 0
 
 

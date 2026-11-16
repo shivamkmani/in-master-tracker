@@ -883,6 +883,225 @@ function peekStop() {
   if (PEEK.el) { PEEK.el.remove(); PEEK.el = null; }
 }
 
+/* ---------- editor: paste the day's picks and publish them to the repository ---------- */
+/* No server: the editor signs in with a GitHub fine-grained token limited to this
+   repository's contents. It is kept only in this browser, and is sent only to
+   api.github.com. Publishing writes a small file to picks/inbox/, which the next
+   workflow run merges into the archive and deploys. */
+const REPO = "shivamkmani/in-master-tracker";
+const TOKEN_KEY = "imt-editor-token";
+const store = {
+  get() { try { return localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY) || ""; } catch (e) { return ""; } },
+  set(t, remember) { try { (remember ? localStorage : sessionStorage).setItem(TOKEN_KEY, t); } catch (e) { /* storage blocked: token lives for this page only */ } },
+  clear() { try { localStorage.removeItem(TOKEN_KEY); sessionStorage.removeItem(TOKEN_KEY); } catch (e) { /* ignore */ } },
+};
+let editorToken = "";
+async function gh(path, opts = {}) {
+  const r = await fetch("https://api.github.com/repos/" + REPO + path, Object.assign({}, opts, {
+    headers: Object.assign({ Authorization: "Bearer " + editorToken, Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" }, opts.headers || {}),
+  }));
+  const body = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error((body && body.message) || ("HTTP " + r.status));
+  return body;
+}
+
+const PICK_DATE = /^(?:(?:mon|tues?|wed(?:nes)?|thu(?:rs?)?|fri|sat(?:ur)?|sun)(?:day)?,?\s+)?(?:(\d{1,2})(?:st|nd|rd|th)?\s+([a-z]{3,9})|([a-z]{3,9})\s+(\d{1,2})(?:st|nd|rd|th)?)(?:,?\s+(\d{4}))?$/i;
+function lineDate(text, fallbackYear) {
+  const m = text.trim().replace(/[:.]$/, "").match(PICK_DATE);
+  if (!m) return null;
+  const mon = MON.findIndex((x) => x.toLowerCase() === (m[2] || m[3]).slice(0, 3).toLowerCase());
+  if (mon < 0) return null;
+  const day = +(m[1] || m[4]), year = +(m[5] || fallbackYear);
+  const d = new Date(year, mon, day);
+  return d.getDate() === day ? localISO(d) : null;
+}
+
+/* Turn pasted Word/Docs/email content (HTML) or plain text into items. The
+   clipboard HTML is parsed in a detached document and never inserted into the page. */
+function parsePaste(html, text, defaultDate) {
+  const units = [];
+  if (html) {
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    let blocks = [...doc.querySelectorAll("li")];
+    if (!blocks.length) blocks = [...doc.querySelectorAll("p, div, h1, h2, h3, h4, tr")].filter((b) => !b.querySelector("p, div, tr"));
+    if (!blocks.length) blocks = [doc.body];
+    for (const b of blocks) {
+      // A block with line breaks may hold several items (e.g. pasted from email).
+      const parts = b.innerHTML.split(/<br\s*\/?>/i);
+      for (const part of parts) {
+        const frag = new DOMParser().parseFromString("<div>" + part + "</div>", "text/html").body;
+        units.push({ text: frag.textContent, links: [...frag.querySelectorAll("a[href]")].map((a) => a.getAttribute("href")) });
+      }
+    }
+  } else {
+    for (const line of (text || "").split(/\r?\n/)) units.push({ text: line, links: [] });
+  }
+  const out = [];
+  let date = defaultDate;
+  for (const u of units) {
+    let t = (u.text || "").replace(/\s+/g, " ").trim();
+    if (!t) continue;
+    const d = lineDate(t, defaultDate.slice(0, 4));
+    if (d && !u.links.length) { date = d; continue; }
+    const bare = t.match(/https?:\/\/[^\s<>"')\]]+/g) || [];
+    const links = [...new Set([...u.links, ...bare].map((x) => x.replace(/[.,;]+$/, "")).filter((x) => /^https?:\/\//i.test(x)))];
+    t = t.replace(/https?:\/\/[^\s<>"')\]]+/g, " ")
+      .replace(/^\s*(?:\d{1,3}[.)]|[-•*·▪●])\s*/, "")
+      .replace(/\s*[-–—:|]?\s*\(?\b(?:links?|here|source|read more)\b\)?(?:\s*[,;&/]\s*(?:links?|here))*\s*[.;]?\s*$/i, "")
+      .replace(/\s+/g, " ").replace(/\s*[-–—|:(\[]+\s*$/, "").trim();
+    if (t.length < 8) continue;
+    out.push({ date, title: t, url: links[0] || "", more: links.slice(1) });
+  }
+  return out;
+}
+const hostOf = (u) => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch (e) { return ""; } };
+
+function showEditor() {
+  V = { page: "editor" };
+  editorToken = editorToken || store.get();
+  const app = document.getElementById("app");
+  if (!editorToken) return editorSignIn(app);
+  const today = localISO(new Date());
+  const E = { date: today, items: [], removes: [], busy: false };
+  const known = new Map();
+  for (const r of (G.picks && G.picks.items) || []) if (r.url) known.set(r.url, r.date);
+
+  const dateIn = el("input", { type: "date", value: E.date, "aria-label": "Date for these articles" });
+  const box = el("textarea", { class: "paste", rows: 9, placeholder: "Paste the day's list here (from Word, Google Docs or email). Hyperlinks on “link” are kept; full URLs work too." });
+  const preview = el("div");
+  const existing = el("div");
+  const status = el("p", { class: "cite", role: "status" });
+  const publish = el("button", { type: "button", class: "primary" }, "Publish");
+
+  function draw() {
+    preview.replaceChildren();
+    const n = E.items.length, noLink = E.items.filter((r) => !r.url).length;
+    publish.textContent = E.removes.length && !n ? "Remove " + E.removes.length : "Publish " + n + (n === 1 ? " article" : " articles") + (E.removes.length ? " and remove " + E.removes.length : "");
+    publish.disabled = E.busy || (!n && !E.removes.length);
+    if (!n) { preview.append(el("p", { class: "muted" }, "Nothing to publish yet. Paste a list above.")); return; }
+    preview.append(el("p", { class: "muted count" }, n + (n === 1 ? " article" : " articles") + " ready" + (noLink ? " · " + noLink + " without a link" : "") + ". Edit a title by clicking it."));
+    const ul = el("ul", { class: "edit-list" });
+    E.items.forEach((r, i) => {
+      const t = el("input", { class: "edit-title", value: r.title, "aria-label": "Title " + (i + 1) });
+      t.addEventListener("input", () => { r.title = t.value; });
+      const d = el("input", { type: "date", value: r.date, class: "edit-date", "aria-label": "Date " + (i + 1) });
+      d.addEventListener("change", () => { r.date = d.value || E.date; });
+      const dup = r.url && known.get(r.url);
+      const meta = el("small", null, r.url ? hostOf(r.url) : "No link", r.more.length ? " · +" + r.more.length + " more" : "",
+        dup ? el("b", { class: "warn-txt" }, " · Already on the site (" + dateLabel(dup) + ")") : null);
+      ul.append(el("li", null, el("div", { class: "edit-row" }, t, d,
+        el("button", { type: "button", class: "x", "aria-label": "Drop article " + (i + 1), onclick: () => { E.items.splice(i, 1); draw(); } }, "✕")), meta));
+    });
+    preview.append(ul);
+  }
+  function drawExisting() {
+    existing.replaceChildren();
+    const rows = ((G.picks && G.picks.items) || []).filter((r) => r.date === E.date);
+    existing.append(el("h3", { class: "sec-h" }, "Already on the site for " + dateLabel(E.date) + " (" + rows.length + ")"));
+    if (!rows.length) { existing.append(el("p", { class: "muted" }, "None yet.")); return; }
+    const ul = el("ul", { class: "edit-list" });
+    for (const r of rows) {
+      const k = { date: r.date, url: r.url || "", title: r.title };
+      const marked = () => E.removes.some((x) => x.date === k.date && (x.url || x.title) === (k.url || k.title));
+      const btn = el("button", { type: "button", class: "x" }, marked() ? "Undo" : "Remove");
+      btn.addEventListener("click", () => {
+        E.removes = marked() ? E.removes.filter((x) => !(x.date === k.date && (x.url || x.title) === (k.url || k.title))) : [...E.removes, k];
+        drawExisting(); draw();
+      });
+      ul.append(el("li", { class: marked() ? "struck" : "" }, el("div", { class: "edit-row" }, el("span", { class: "edit-title ro" }, r.title), btn), el("small", null, r.source || hostOf(r.url))));
+    }
+    existing.append(ul);
+  }
+  box.addEventListener("paste", (e) => {
+    const html = e.clipboardData.getData("text/html"), text = e.clipboardData.getData("text/plain");
+    if (!html && !text) return;
+    e.preventDefault();
+    box.value = text;
+    E.items = parsePaste(html, text, E.date);
+    draw();
+  });
+  box.addEventListener("input", () => { E.items = parsePaste("", box.value, E.date); draw(); });
+  dateIn.addEventListener("change", () => {
+    const old = E.date; E.date = dateIn.value || today;
+    E.items.forEach((r) => { if (r.date === old) r.date = E.date; });
+    draw(); drawExisting();
+  });
+  publish.addEventListener("click", async () => {
+    E.busy = true; draw();
+    status.textContent = "Publishing…";
+    const add = E.items.filter((r) => r.title.trim()).map((r) => ({ date: r.date, title: r.title.trim(), url: r.url, more: r.more }));
+    const payload = JSON.stringify({ add, remove: E.removes }, null, 1);
+    const stamp = new Date().toISOString().replace(/[-:]/g, "").slice(0, 15);
+    const bytes = new TextEncoder().encode(payload);
+    let bin = ""; bytes.forEach((b) => { bin += String.fromCharCode(b); });
+    try {
+      await gh("/contents/picks/inbox/" + E.date + "-" + stamp + ".json", { method: "PUT", body: JSON.stringify({
+        message: "Editor: " + (add.length ? "add " + add.length + " picks" : "") + (add.length && E.removes.length ? ", " : "") + (E.removes.length ? "remove " + E.removes.length : "") + " for " + E.date,
+        content: btoa(bin), branch: "main" }) });
+      // Show them straight away on this device; the published site catches up in a couple of minutes.
+      if (G.picks) {
+        const gone = (r) => E.removes.some((x) => x.date === r.date && (x.url || x.title) === (r.url || r.title));
+        G.picks.items = [...add.map((r) => ({ ...r, source: hostOf(r.url), more: r.more.map((u) => ({ url: u, source: hostOf(u) })) })), ...G.picks.items.filter((r) => !gone(r))];
+      }
+      status.replaceChildren("Published. The site updates in about 2 minutes. ",
+        el("a", { href: "https://github.com/" + REPO + "/actions", target: "_blank", rel: "noopener" }, "Watch progress"), " · ",
+        el("a", { href: "#/daily?d=" + E.date }, "View the day"));
+      E.items = []; E.removes = []; box.value = "";
+      for (const r of add) if (r.url) known.set(r.url, r.date);
+    } catch (err) {
+      status.textContent = "Couldn't publish: " + err.message + (/credentials|401|403|Not Found/i.test(err.message) ? ". The token may have expired or lack Contents: Read and write on this repository." : "");
+    }
+    E.busy = false; draw(); drawExisting();
+  });
+
+  app.replaceChildren(
+    el("div", { class: "home-h" }, el("h1", null, "Editor"),
+      el("button", { type: "button", onclick: () => { store.clear(); editorToken = ""; showEditor(); } }, "Sign out")),
+    el("p", { class: "lede" }, "Paste the day's news and policy updates, check the preview, and publish. They join the Daily updates archive and calendar."),
+    el("div", { class: "grid" },
+      el("section", { class: "card" },
+        el("div", { class: "card-h" }, el("h2", null, "New articles"), el("label", { class: "f inline" }, "Date ", dateIn)),
+        box, preview,
+        el("div", { class: "tfoot" }, status, el("div", { class: "actions" }, publish))),
+      el("aside", { class: "card" }, existing)));
+  draw(); drawExisting();
+}
+
+function editorSignIn(app) {
+  const tok = el("input", { type: "password", class: "tok", placeholder: "github_pat_…", autocomplete: "off", "aria-label": "GitHub token" });
+  const remember = el("input", { type: "checkbox", checked: true });
+  const msg = el("p", { class: "cite", role: "status" });
+  const go = el("button", { type: "button", class: "primary" }, "Sign in");
+  go.addEventListener("click", async () => {
+    editorToken = tok.value.trim();
+    if (!editorToken) return;
+    msg.textContent = "Checking…";
+    try {
+      const repo = await gh("");
+      if (!repo.permissions || !repo.permissions.push) throw new Error("this token can read the repository but not write to it");
+      store.set(editorToken, remember.checked);
+      showEditor();
+    } catch (err) {
+      editorToken = "";
+      msg.textContent = "Sign-in failed: " + err.message + ".";
+    }
+  });
+  tok.addEventListener("keydown", (e) => { if (e.key === "Enter") go.click(); });
+  app.replaceChildren(el("h1", null, "Editor sign-in"),
+    el("section", { class: "card narrow" },
+      el("p", null, "Sign in with a GitHub token that can edit this site's repository. It stays in this browser and is only sent to GitHub."),
+      el("div", { class: "f" }, "GitHub token", tok),
+      el("label", { class: "check" }, remember, " Remember on this device"),
+      el("div", { class: "actions" }, go), msg,
+      el("details", { class: "how" }, el("summary", null, "How to get a token (once, about 2 minutes)"),
+        el("ol", null,
+          el("li", null, "On GitHub, open Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token."),
+          el("li", null, "Repository access: Only select repositories → in-master-tracker."),
+          el("li", null, "Permissions → Repository permissions → Contents: Read and write. Nothing else is needed."),
+          el("li", null, "Pick an expiry (up to a year), generate, and paste the token here.")))));
+  tok.focus();
+}
+
 /* ---------- "Sectors" dropdown in the tab bar ---------- */
 const SECTOR_KEYS = Object.keys(PAGES).filter((k) => k !== "macro" && k !== "states");
 function closeSectors() {
@@ -934,7 +1153,7 @@ document.getElementById("nav").addEventListener("scroll", () => { if (Date.now()
 async function route() {
   peekStop();
   const { page, q } = readHash();
-  const name = PAGES[page] || ["sources", "daily", "dashboard"].includes(page) ? page : "dashboard";
+  const name = PAGES[page] || ["sources", "daily", "dashboard", "editor"].includes(page) ? page : "dashboard";
   closeSectors();
   document.querySelectorAll("nav a, .sec-menu a").forEach((a) => {
     if (a.dataset.p === name) a.setAttribute("aria-current", "page");
@@ -947,6 +1166,7 @@ async function route() {
   try {
     if (name === "sources") showSources();
     else if (name === "daily") { await loadPicks(); showDaily(q); }
+    else if (name === "editor") { await loadPicks(); showEditor(); }
     else if (name === "dashboard") { await loadPicks(); await showHome(); peekStart(); }
     else await showData(name, q);
   } catch (e) {
