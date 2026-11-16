@@ -75,6 +75,7 @@ td.seg{min-width:170px}
 .side input[type=search]{width:100%;margin-bottom:14px}
 .picks{max-height:none;overflow:visible}
 .picks .t{font-weight:550}
+.news small a.also{color:var(--accent);font-weight:400}
 .sec-h{font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink3);margin:18px 0 2px}
 .day-h{font-size:15px;margin:18px 0 2px}
 .count{font-size:13px;margin:0 0 4px}

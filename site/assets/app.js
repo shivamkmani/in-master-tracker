@@ -573,10 +573,18 @@ const MONTHS_LONG = ["January", "February", "March", "April", "May", "June", "Ju
 
 function pickLine(r) {
   const url = safeUrl(r.url);
-  const meta = [r.source, r.note].filter(Boolean).join(" · ");
+  const extra = (r.more || []).filter((m) => safeUrl(m.url));
+  const meta = el("small", null, [r.source, r.note].filter(Boolean).join(" · "));
+  if (extra.length) {
+    meta.append(r.source ? " · Also: " : "Also: ");
+    extra.forEach((m, i) => {
+      if (i) meta.append(", ");
+      meta.append(el("a", { class: "also", href: m.url, target: "_blank", rel: "noopener" }, m.source || "link"));
+    });
+  }
   return el("li", null,
     url ? el("a", { href: url, target: "_blank", rel: "noopener" }, r.title) : el("span", { class: "t" }, r.title),
-    meta ? el("small", null, meta) : null);
+    meta.textContent ? meta : null);
 }
 
 /* Keep the document's own order and section headings within a day. */

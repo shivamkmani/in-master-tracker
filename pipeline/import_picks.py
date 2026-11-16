@@ -43,8 +43,8 @@ MONTHS.update({k[:3]: v for k, v in list(MONTHS.items())})
 MON = r"(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sept?(?:ember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)"
 DAY = r"(?:(?:mon|tues?|wed(?:nes)?|thu(?:rs?)?|fri|sat(?:ur)?|sun)(?:day)?,?\s+)?"
 DATE_PATTERNS = [
-    re.compile(r"^%s(\d{1,2})(?:st|nd|rd|th)?\s+(?:of\s+)?%s,?\s+(\d{4})$" % (DAY, MON), re.I),  # 16 November 2026
-    re.compile(r"^%s%s\s+(\d{1,2})(?:st|nd|rd|th)?,?\s+(\d{4})$" % (DAY, MON), re.I),            # November 16, 2026
+    re.compile(r"^%s(\d{1,2})(?:st|nd|rd|th)?\s+(?:of\s+)?%s(?:,?\s+(\d{4}))?$" % (DAY, MON), re.I),  # 16 November [2026]
+    re.compile(r"^%s%s\s+(\d{1,2})(?:st|nd|rd|th)?(?:,?\s+(\d{4}))?$" % (DAY, MON), re.I),            # November 16[, 2026]
     re.compile(r"^%s(\d{1,2})[./-](\d{1,2})[./-](\d{2,4})$" % DAY, re.I),                         # 16/11/2026, 16.11.26
     re.compile(r"^(\d{4})-(\d{2})-(\d{2})$"),                                                      # 2026-11-16
 ]
@@ -60,11 +60,14 @@ SOURCES = {
     "cnbctv18.com": "CNBC-TV18", "theprint.in": "ThePrint", "scroll.in": "Scroll", "thewire.in": "The Wire",
     "deccanherald.com": "Deccan Herald", "nikkei.com": "Nikkei Asia", "asia.nikkei.com": "Nikkei Asia",
     "fortuneindia.com": "Fortune India", "businesstoday.in": "Business Today", "inc42.com": "Inc42",
-    "entrackr.com": "Entrackr", "the-ken.com": "The Ken", "themorningcontext.com": "The Morning Context",
+    "entrackr.com": "Entrackr", "economictimes.com": "Economic Times", "medianama.com": "MediaNama",
+    "pharmabiz.com": "Pharmabiz", "telegraphindia.com": "The Telegraph", "tribuneindia.com": "The Tribune",
+    "indiatoday.in": "India Today", "rediff.com": "Rediff", "thenewsminute.com": "The News Minute", "taxguru.in": "TaxGuru", "the-ken.com": "The Ken", "themorningcontext.com": "The Morning Context",
 }
 
 
 def parse_date(text):
+    """Return (year or None, month, day) for a line that is only a date."""
     t = re.sub(r"\s+", " ", text.strip().strip(":-–—*#").strip())
     if not t or len(t) > 40:
         return None
@@ -74,18 +77,33 @@ def parse_date(text):
             continue
         try:
             if i == 0:
-                d, mon, y = int(m.group(1)), MONTHS[m.group(2).lower()[:3]], int(m.group(3))
+                d, mon, y = int(m.group(1)), MONTHS[m.group(2).lower()[:3]], m.group(3)
             elif i == 1:
-                mon, d, y = MONTHS[m.group(1).lower()[:3]], int(m.group(2)), int(m.group(3))
+                mon, d, y = MONTHS[m.group(1).lower()[:3]], int(m.group(2)), m.group(3)
             elif i == 2:
                 d, mon, y = int(m.group(1)), int(m.group(2)), int(m.group(3))
                 y = y + 2000 if y < 100 else y
             else:
                 y, mon, d = int(m.group(1)), int(m.group(2)), int(m.group(3))
-            return dt.date(y, mon, d).isoformat()
+            y = int(y) if y else None
+            dt.date(y or 2000, mon, d)  # validates day and month; 2000 is a leap year
+            return y, mon, d
         except (ValueError, KeyError):
             return None
     return None
+
+
+GENERIC_LINK = re.compile(r"^(link|links|here|source|read more|more|article|story|url)$", re.I)
+
+
+def unwrap(url):
+    """Outlook and Google wrap links in redirects; keep the real address."""
+    q = urllib.parse.parse_qs(urllib.parse.urlparse(url).query)
+    if "safelinks.protection.outlook.com" in url and q.get("url"):
+        return q["url"][0]
+    if re.match(r"https?://(www\.)?google\.[a-z.]+/url", url) and (q.get("q") or q.get("url")):
+        return (q.get("q") or q.get("url"))[0]
+    return url
 
 
 def source_for(url):
@@ -145,37 +163,60 @@ def paragraphs(docx_bytes):
 
 
 def clean_title(text, link_text, url):
-    """Prefer the paragraph text minus the raw URL; fall back to the link text."""
+    """Prefer the paragraph text minus the raw URL and any trailing '– link'."""
     t = text.replace(url, "").strip()
+    t = re.sub(r"\s*[\-–—:|]?\s*\(?\b(?:links?|here|source|read more)\b\)?(?:\s*[,;&/]\s*(?:links?|here))*\s*\.?$", "", t, flags=re.I)
     t = re.sub(r"^[\-–—•*·\d.)\s]+", "", t)
     t = re.sub(r"\s*[\-–—|:(\[]*\s*$", "", t)
     t = re.sub(r"\(\s*\)|\[\s*\]", "", t).strip()
     return t or link_text or url
 
 
+def resolve_year(mon, day, prev):
+    """The document is newest first and dates often omit the year. The first
+    date takes the latest year that doesn't put it in the future; after that a
+    date later in the calendar than the one above it means we crossed back
+    over a new year."""
+    if prev is None:
+        today = dt.date.today()
+        y = today.year
+        return y if (mon, day) <= (today.month, today.day) else y - 1
+    y = prev.year
+    return y - 1 if (mon, day) > (prev.month, prev.day) else y
+
+
 def parse(docx_bytes):
-    items, current, section, last = [], None, "", None
+    items, current, section, last, prev = [], None, "", None, None
     for text, links, heading, bold in paragraphs(docx_bytes):
         if not text and not links:
             continue
         date = parse_date(text) if not links else None
         if date:
-            current, section, last = date, "", None
+            y, mon, d = date
+            prev = dt.date(y or resolve_year(mon, d, prev), mon, d)
+            current, section, last = prev.isoformat(), "", None
             continue
         if current is None:
             continue
         if links:
             # One paragraph can hold several links; each becomes its own item
             # unless the paragraph is a single headline with one link.
-            if len(links) == 1:
-                link_text, url = links[0]
-                pairs = [(clean_title(text, link_text, url), url)]
-            else:
-                pairs = [(lt or source_for(u), u) for lt, u in links]
-            for title, url in pairs:
-                last = {"date": current, "title": title[:400], "url": url, "source": source_for(url),
-                        "section": section, "note": ""}
+            links = [(lt, unwrap(u)) for lt, u in links]
+            generic = all(not lt or GENERIC_LINK.match(lt) for lt, _ in links)
+            if len(links) == 1 or generic:
+                # One summary line with its article link(s), e.g. "... – link, link".
+                url = links[0][1]
+                last = {"date": current, "title": clean_title(text, links[0][0], url)[:600], "url": url,
+                        "source": source_for(url), "section": section, "note": ""}
+                more = [{"url": u, "source": source_for(u)} for _, u in links[1:] if u != url]
+                if more:
+                    last["more"] = more
                 items.append(last)
+            else:
+                for lt, u in links:
+                    last = {"date": current, "title": (lt or source_for(u))[:600], "url": u, "source": source_for(u),
+                            "section": section, "note": ""}
+                    items.append(last)
             continue
         short = len(text) <= 70 and not text.endswith(".")
         if heading or (bold and short) or (short and last is None and not section):
