@@ -69,6 +69,7 @@ SOURCES = {
 def parse_date(text):
     """Return (year or None, month, day) for a line that is only a date."""
     t = re.sub(r"\s+", " ", text.strip().strip(":-–—*#").strip())
+    t = re.sub(r"(?<=[A-Za-z]) (\d{1,2})\s+\d{1,2}\.$", r" \1", t)  # "June 18 1." (a stray list number)
     if not t or len(t) > 40:
         return None
     for i, rx in enumerate(DATE_PATTERNS):
@@ -93,6 +94,7 @@ def parse_date(text):
     return None
 
 
+TRAILING_LINK = re.compile(r"[–—-]\s*links?\s*[.;]?$", re.I)
 GENERIC_LINK = re.compile(r"^(link|links|here|source|read more|more|article|story|url)$", re.I)
 
 
@@ -175,14 +177,15 @@ def clean_title(text, link_text, url):
 def resolve_year(mon, day, prev):
     """The document is newest first and dates often omit the year. The first
     date takes the latest year that doesn't put it in the future; after that a
-    date later in the calendar than the one above it means we crossed back
-    over a new year."""
+    date more than two months later in the calendar than the one above it
+    means we crossed back over a new year. A smaller jump is a heading out of
+    order (e.g. October 24 followed by October 27) and keeps the year."""
     if prev is None:
         today = dt.date.today()
         y = today.year
         return y if (mon, day) <= (today.month, today.day) else y - 1
-    y = prev.year
-    return y - 1 if (mon, day) > (prev.month, prev.day) else y
+    same = dt.date(prev.year, mon, day) if (mon, day) != (2, 29) else dt.date(prev.year, 3, 1)
+    return prev.year - 1 if (same - prev).days > 60 else prev.year
 
 
 def parse(docx_bytes):
@@ -193,8 +196,10 @@ def parse(docx_bytes):
         date = parse_date(text) if not links else None
         if date:
             y, mon, d = date
-            prev = dt.date(y or resolve_year(mon, d, prev), mon, d)
-            current, section, last = prev.isoformat(), "", None
+            when = dt.date(y or resolve_year(mon, d, prev), mon, d)
+            if prev is None or when <= prev or y:
+                prev = when  # an out-of-order heading doesn't move the anchor
+            current, section, last = when.isoformat(), "", None
             continue
         if current is None:
             continue
@@ -217,6 +222,12 @@ def parse(docx_bytes):
                     last = {"date": current, "title": (lt or source_for(u))[:600], "url": u, "source": source_for(u),
                             "section": section, "note": ""}
                     items.append(last)
+            continue
+        if TRAILING_LINK.search(text):
+            # "Headline – link" where the link itself was lost in copying.
+            last = {"date": current, "title": clean_title(text, "", "")[:600], "url": "", "source": "",
+                    "section": section, "note": ""}
+            items.append(last)
             continue
         short = len(text) <= 70 and not text.endswith(".")
         if heading or (bold and short) or (short and last is None and not section):
@@ -260,7 +271,7 @@ def main():
         print("picks: %d items over %d days from %s (dry run)" % (len(new), len({r["date"] for r in new}), name))
         return 0
     existing = json.load(open(OUT, encoding="utf8")).get("items", []) if os.path.exists(OUT) else []
-    key = lambda r: (r["date"], r["url"] or r["title"])  # noqa: E731
+    key = lambda r: (r["date"], r.get("url") or r["title"])  # noqa: E731
     merged = {key(r): r for r in existing}
     order = {}
     for i, r in enumerate(new):
@@ -268,6 +279,9 @@ def main():
         order[key(r)] = i
     # Newest day first; within a day keep the document's order.
     items = sorted(merged.values(), key=lambda r: (r["date"], -order.get(key(r), 10**6)), reverse=True)
+    # Empty fields are left out to keep the file small; the site treats a
+    # missing field as empty.
+    items = [{k: v for k, v in r.items() if v or k in ("date", "title")} for r in items]
     payload = {"updated": dt.datetime.now(dt.timezone.utc).isoformat(timespec="minutes"), "items": items}
     with open(OUT, "w", encoding="utf8") as fh:
         json.dump(payload, fh, ensure_ascii=False, separators=(",", ":"))

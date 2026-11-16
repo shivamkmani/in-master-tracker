@@ -690,6 +690,10 @@ function showSources() {
 }
 
 /* ---------- daily updates: hand-picked articles, one list per day ---------- */
+/* Only the pages that show picks download them. */
+async function loadPicks() {
+  if (!G.picks) G.picks = await getJSON("picks").catch(() => ({ items: [] }));
+}
 const localISO = (d) => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
 const longDate = (s) => new Date(s + "T00:00:00").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 const safeUrl = (u) => /^https?:\/\//i.test(u || "") ? u : null;
@@ -863,8 +867,8 @@ async function route() {
   });
   try {
     if (name === "sources") showSources();
-    else if (name === "daily") showDaily(q);
-    else if (name === "dashboard") await showHome();
+    else if (name === "daily") { await loadPicks(); showDaily(q); }
+    else if (name === "dashboard") { await loadPicks(); await showHome(); }
     else await showData(name, q);
   } catch (e) {
     document.getElementById("app").replaceChildren(el("p", { class: "empty" }, "Couldn't load this page: " + e.message));
@@ -878,8 +882,7 @@ async function start() {
     nav.lastChild.dataset.p = k;
   }
   try {
-    [G.meta, G.news, G.picks] = await Promise.all([getJSON("meta"), getJSON("news"),
-      getJSON("picks").catch(() => ({ items: [] }))]);
+    [G.meta, G.news] = await Promise.all([getJSON("meta"), getJSON("news")]);
   } catch (e) {
     document.getElementById("app").replaceChildren(el("p", { class: "empty" }, "Data files are missing. Run the pipeline first. (" + e.message + ")"));
     return;
