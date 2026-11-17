@@ -35,7 +35,8 @@ python3 -m http.server 8765 --directory site
 
 ## Source rules
 
-- Add only government, regulator, multilateral or trade association sources.
+- Official developments come only from government, regulator, multilateral or trade association sources.
+- News outlet feeds (`type: "News outlet"` in `config/news.json`) store only the headline, outlet, date and link. The feed summary is read to tag sectors and states but is never stored or shown, and items drop off after 90 days. Set `"enabled": false` on a feed to stop using it. Check each outlet's RSS terms before adding it.
 - Keep requests paced. MoSPI's API rate-limits bursts, so `pipeline/mospi.py` sends them one at a time.
 - If a source fails, the last good data stays in place and the Sources page shows the failure.
 

@@ -229,7 +229,7 @@ const SRC = (u) => { const h = (u || "").replace(/^https?:\/\/(www\.)?/, "").spl
 
   // flight director: macro developments
   const ev = document.getElementById("events");
-  for (const r of news.items.filter((r) => r.sectors.some((s) => s === "macro" || s === "finance") && r.scope !== "State").slice(0, 10))
+  for (const r of news.items.filter((r) => r.sectors.some((s) => s === "macro" || s === "finance") && r.scope !== "State" && r.type !== "News outlet").slice(0, 10))
     ev.append($("li", null, $("a", { href: r.url }, tidy(r.title)), $("small", null, dd(r.date) + " · " + short(r.publisher).replace(" releases", ""))));
 
   // comms log

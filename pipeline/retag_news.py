@@ -16,8 +16,8 @@ import fetch_news as fn  # noqa: E402
 
 def main():
     data = json.load(open(fn.OUT, encoding="utf8"))
-    defaults = {f["name"]: f["default_sectors"] for f in fn.CFG["feeds"]}
-    feeds = {f["name"]: f for f in fn.CFG["feeds"]}
+    feeds = {f["name"]: fn.outlet_feed(f) for f in fn.CFG["feeds"]}
+    defaults = {name: f.get("default_sectors", []) for name, f in feeds.items()}
     before = len(data["items"])
     data["items"] = [r for r in data["items"]
                      if not (r["publisher"] in feeds and fn.feed_excluded(feeds[r["publisher"]], r["title"]))]

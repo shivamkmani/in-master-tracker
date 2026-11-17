@@ -463,6 +463,7 @@ function sortBy(col) {
 }
 
 /* ---------- developments ---------- */
+const isOutlet = (r) => r.type === "News outlet";
 function newsItems() {
   const n = V.news, sector = PAGES[V.page].news;
   const t = n.q.toLowerCase();
@@ -471,6 +472,8 @@ function newsItems() {
     if (sector && ![].concat(sector).some((x) => r.sectors.includes(x))) return false;
     if (n.scope !== "All" && r.scope !== n.scope) return false;
     if (n.scope === "State" && G.focus && !r.states.includes(G.focus)) return false;
+    if (n.src === "Official" && isOutlet(r)) return false;
+    if (n.src === "News" && !isOutlet(r)) return false;
     if (cutoff && r.date < cutoff) return false;
     return !t || (r.title + " " + r.publisher + " " + r.snippet).toLowerCase().includes(t);
   });
@@ -481,6 +484,8 @@ function renderNews() {
   const items = newsItems();
   const scopes = el("div", { class: "seg-btns" }, ["All", "International", "National", "State"].map((sc) =>
     el("button", { type: "button", class: n.scope === sc ? "on" : "", onclick: () => { n.scope = sc; renderNews(); } }, sc)));
+  const srcSel = el("select", { "aria-label": "Sources", onchange: (e) => { n.src = e.target.value; renderNews(); } },
+    [["All", "Official and news"], ["Official", "Official only"], ["News", "News outlets only"]].map(([v, t]) => el("option", { value: v, selected: v === n.src }, t)));
   const search = el("input", { type: "search", placeholder: "Search developments", value: n.q, "aria-label": "Search developments", oninput: (e) => { n.q = e.target.value; drawList(); } });
   const days = el("select", { "aria-label": "Time window", onchange: (e) => { n.days = +e.target.value; renderNews(); } },
     [[7, "Last 7 days"], [30, "Last 30 days"], [90, "Last 90 days"], [0, "All dates"]].map(([v, t]) => el("option", { value: v, selected: v === n.days }, t)));
@@ -499,7 +504,7 @@ function renderNews() {
     }
   }
   host.append(el("div", { class: "card-h" }, el("h2", null, "Developments"), count),
-    el("div", { class: "news-tools" }, scopes, search, el("div", { class: "actions" }, days, copyBtn)), list);
+    el("div", { class: "news-tools" }, scopes, search, el("div", { class: "actions" }, srcSel, days, copyBtn)), list);
   drawList();
 }
 
@@ -596,7 +601,7 @@ async function showHome() {
     more("#/daily" + (day ? "?d=" + day : ""), dayRows.length > 8 ? "All " + dayRows.length + " for this day" : "Calendar and archive")));
 
   // Macro and finance developments
-  const nat = G.news.items.filter((r) => r.sectors.some((x) => MACRO_NEWS.includes(x)) && r.scope !== "State").slice(0, 8);
+  const nat = G.news.items.filter((r) => r.sectors.some((x) => MACRO_NEWS.includes(x)) && r.scope !== "State" && !isOutlet(r)).slice(0, 8);
   const devs = el("aside", { class: "card", "aria-label": "Macro developments" },
     el("div", { class: "card-h" }, el("h2", null, "Macro developments"), el("span", { class: "muted" }, "Government and regulators")),
     nat.length
@@ -642,7 +647,7 @@ async function showData(page, q) {
   const rows = await loadPage(page);
   if (q.get("focus") !== null) G.focus = q.get("focus");
   const freqs = uniq(rows.map((r) => r.f));
-  V = { page, rows, preset: null, sort: null, dirty: false, sel: { freq: freqs[0], span: 12, ds: [], geo: [], seg: [], ind: [] }, news: { scope: "All", q: "", days: 30 } };
+  V = { page, rows, preset: null, sort: null, dirty: false, sel: { freq: freqs[0], span: 12, ds: [], geo: [], seg: [], ind: [] }, news: { scope: "All", src: "All", q: "", days: 30 } };
   if (q.get("freq")) {
     const s = V.sel;
     s.freq = q.get("freq"); s.span = +(q.get("span") ?? 12);
@@ -681,11 +686,11 @@ function showSources() {
   const groups = { nas: "National accounts", gsdp: "State accounts", gsva: "State accounts", cpi: "CPI", iip: "IIP", wpi: "WPI", isp: "ISP", plfs: "PLFS", asi: "ASI", rbi_trade: "RBI", rbi_fx: "RBI", rbi_commodity: "RBI" };
   const data = el("table", { class: "src-table" }, el("thead", null, el("tr", null, ["Dataset", "Publisher", "Frequency", "Status", "Notes"].map((t) => el("th", null, t)))),
     el("tbody", null, Object.entries(m.datasets).map(([k, d]) => el("tr", null, el("td", null, el("a", { href: d.url, target: "_blank", rel: "noopener" }, d.title)), el("td", null, d.publisher), el("td", null, d.frequency), el("td", null, stat(m.status[groups[k]])), el("td", null, d.note)))));
-  const feeds = el("table", { class: "src-table" }, el("thead", null, el("tr", null, ["Feed", "Status", "Items read"].map((t) => el("th", null, t)))),
-    el("tbody", null, Object.entries(G.news.status).map(([k, s]) => el("tr", null, el("td", null, k), el("td", null, s.ok ? el("span", { class: "ok" }, "Read") : el("span", { class: "fail", title: s.error || "" }, "Failed")), el("td", { class: "n" }, s.items ?? "–")))));
+  const feeds = el("table", { class: "src-table" }, el("thead", null, el("tr", null, ["Feed", "Type", "Status", "Items read"].map((t) => el("th", null, t)))),
+    el("tbody", null, Object.entries(G.news.status).map(([k, s]) => el("tr", null, el("td", null, k), el("td", null, s.type || (k.startsWith("PIB") ? "Government" : "")), el("td", null, s.ok ? el("span", { class: "ok" }, "Read") : el("span", { class: "fail", title: s.error || "" }, "Failed")), el("td", { class: "n" }, s.items ?? "–")))));
   document.getElementById("app").replaceChildren(
     el("h1", null, "Sources"),
-    el("p", { class: "lede" }, "Every number and development comes from a government body or trade association. Last data refresh: " + new Date(m.updated).toLocaleString("en-GB") + "."),
+    el("p", { class: "lede" }, "Every number comes from a government body. Developments come from government bodies, regulators, trade associations and international bodies, plus headlines from news outlets, which link to the outlet's own page. Last data refresh: " + new Date(m.updated).toLocaleString("en-GB") + "."),
     el("section", { class: "card" }, el("div", { class: "card-h" }, el("h2", null, "Datasets")), el("div", { class: "tablebox" }, data)),
     el("p", null, " "),
     el("section", { class: "card" }, el("div", { class: "card-h" }, el("h2", null, "News feeds")), el("div", { class: "tablebox" }, feeds)));

@@ -23,6 +23,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(ROOT, "site", "data", "news.json")
 UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126 Safari/537.36"
 RETENTION_DAYS = 365
+OUTLET_TYPE = "News outlet"
 SNIPPET = 260
 
 CFG = json.load(open(os.path.join(ROOT, "config", "news.json"), encoding="utf8"))
@@ -215,13 +216,26 @@ def feed_excluded(feed, title):
     return bool(_FEED_EXCLUDE[feed["id"]].search(title))
 
 
+def outlet_feed(feed):
+    """News outlet feeds share one set of rules from config: headline-only
+    storage, a markets-noise filter, and a shorter retention."""
+    if feed.get("type") != OUTLET_TYPE:
+        return feed
+    d = CFG.get("news_outlet_defaults", {})
+    merged = dict(d, **feed)
+    merged["exclude"] = list(d.get("exclude", [])) + list(feed.get("exclude", []))
+    return merged
+
+
 def collect_feed(feed, status):
+    feed = outlet_feed(feed)
     records = []
+    label = feed["name"] + (" (" + feed["section"] + ")" if feed.get("section") else "")
     try:
         items = parse_feed(fetch(feed["url"]))
-        status[feed["name"]] = {"ok": True, "items": len(items)}
+        status[label] = {"ok": True, "items": len(items), "type": feed["type"]}
     except Exception as exc:
-        status[feed["name"]] = {"ok": False, "error": str(exc)[:160]}
+        status[label] = {"ok": False, "error": str(exc)[:160], "type": feed["type"]}
         return records
     for it in items:
         title = clean(it.get("title"))
@@ -232,6 +246,8 @@ def collect_feed(feed, status):
             continue
         if EXCLUDE_RX.search(title) or feed_excluded(feed, title):
             continue
+        # For outlets the feed's summary is read only to tag the item; it is
+        # not stored or shown, only the headline and the link to the outlet.
         sectors = classify(title, "" if feed.get("title_only") else body)
         if feed["require_match"] and not sectors:
             continue
@@ -243,7 +259,7 @@ def collect_feed(feed, status):
             "title": title, "url": link, "date": date,
             "publisher": feed["name"], "detail": "", "type": feed["type"],
             "scope": scope, "sectors": sectors, "states": states,
-            "snippet": body[:SNIPPET],
+            "snippet": "" if feed.get("headline_only") else body[:SNIPPET],
         })
     return records
 
@@ -283,14 +299,19 @@ def main():
     status = {}
     fresh = collect_pib(existing, status)
     for feed in CFG["feeds"]:
+        if feed.get("enabled") is False:
+            continue
         fresh += collect_feed(feed, status)
     fresh += collect_federal_register(status)
 
     merged = dict(existing)
     merged.update({r["id"]: r for r in fresh})
     cutoff = (dt.date.today() - dt.timedelta(days=RETENTION_DAYS)).isoformat()
+    outlet_days = CFG.get("news_outlet_defaults", {}).get("retention_days", 90)
+    outlet_cutoff = (dt.date.today() - dt.timedelta(days=outlet_days)).isoformat()
     today = dt.date.today().isoformat()
-    items = [r for r in merged.values() if cutoff <= r["date"] <= today]
+    items = [r for r in merged.values()
+             if (outlet_cutoff if r.get("type") == OUTLET_TYPE else cutoff) <= r["date"] <= today]
     items.sort(key=lambda r: (r["date"], r["id"]), reverse=True)
 
     payload = {"updated": dt.datetime.now(dt.timezone.utc).isoformat(timespec="minutes"),

@@ -1,5 +1,5 @@
 {
-  "_comment": "Only official government bodies and trade associations belong here. Each feed is tagged with a publisher type shown on the site.",
+  "_comment": "Official bodies, trade associations and international bodies, plus news outlets. Outlet items keep only the headline, outlet, date and link (no summary or text), and link to the outlet's own page.",
   "pib_regions": {
     "3": "Delhi",
     "1": "Mumbai",
@@ -198,6 +198,102 @@
         "energy"
       ],
       "require_match": false
+    },
+    {
+      "id": "et-economy",
+      "name": "The Economic Times",
+      "type": "News outlet",
+      "url": "https://economictimes.indiatimes.com/news/economy/rssfeeds/1373380680.cms",
+      "enabled": true,
+      "section": "Economy"
+    },
+    {
+      "id": "et-industry",
+      "name": "The Economic Times",
+      "type": "News outlet",
+      "url": "https://economictimes.indiatimes.com/industry/rssfeeds/13352306.cms",
+      "enabled": true,
+      "section": "Industry"
+    },
+    {
+      "id": "bs-economy",
+      "name": "Business Standard",
+      "type": "News outlet",
+      "url": "https://www.business-standard.com/rss/economy-102.rss",
+      "enabled": true,
+      "section": "Economy"
+    },
+    {
+      "id": "bs-industry",
+      "name": "Business Standard",
+      "type": "News outlet",
+      "url": "https://www.business-standard.com/rss/industry-217.rss",
+      "enabled": true,
+      "section": "Industry"
+    },
+    {
+      "id": "mint-economy",
+      "name": "Mint",
+      "type": "News outlet",
+      "url": "https://www.livemint.com/rss/economy",
+      "enabled": true,
+      "section": "Economy"
+    },
+    {
+      "id": "mint-industry",
+      "name": "Mint",
+      "type": "News outlet",
+      "url": "https://www.livemint.com/rss/industry",
+      "enabled": true,
+      "section": "Industry"
+    },
+    {
+      "id": "bl-economy",
+      "name": "BusinessLine",
+      "type": "News outlet",
+      "url": "https://www.thehindubusinessline.com/economy/feeder/default.rss",
+      "enabled": true,
+      "section": "Economy"
+    },
+    {
+      "id": "hindu-business",
+      "name": "The Hindu",
+      "type": "News outlet",
+      "url": "https://www.thehindu.com/business/feeder/default.rss",
+      "enabled": true,
+      "section": "Business"
+    },
+    {
+      "id": "fe-economy",
+      "name": "Financial Express",
+      "type": "News outlet",
+      "url": "https://www.financialexpress.com/economy/feed/",
+      "enabled": true,
+      "section": "Economy"
+    },
+    {
+      "id": "ie-business",
+      "name": "The Indian Express",
+      "type": "News outlet",
+      "url": "https://indianexpress.com/section/business/feed/",
+      "enabled": true,
+      "section": "Business"
+    },
+    {
+      "id": "mc-economy",
+      "name": "Moneycontrol",
+      "type": "News outlet",
+      "url": "https://www.moneycontrol.com/rss/economy.xml",
+      "enabled": true,
+      "section": "Economy"
+    },
+    {
+      "id": "ht-business",
+      "name": "Hindustan Times",
+      "type": "News outlet",
+      "url": "https://www.hindustantimes.com/feeds/rss/business/rssfeed.xml",
+      "enabled": true,
+      "section": "Business"
     }
   ],
   "federal_register_agencies": [
@@ -743,5 +839,52 @@
     "drug abuse",
     "drug-free",
     "drug free"
-  ]
+  ],
+  "news_outlet_defaults": {
+    "_comment": "Applied to every feed with type 'News outlet'. The feed summary is used only to tag sectors and states, never stored.",
+    "headline_only": true,
+    "require_match": true,
+    "default_sectors": [],
+    "scope": "National",
+    "retention_days": 90,
+    "exclude": [
+      "sensex",
+      "nifty",
+      "stocks to buy",
+      "stock to buy",
+      "stocks to watch",
+      "share price",
+      "shares jump",
+      "shares fall",
+      "shares rise",
+      "shares surge",
+      "shares slump",
+      "target price",
+      "buy or sell",
+      "market live",
+      "stock market today",
+      "multibagger",
+      "dividend",
+      "q1 results",
+      "q2 results",
+      "q3 results",
+      "q4 results",
+      "quarterly results",
+      "net profit",
+      "ipo gmp",
+      "gmp today",
+      "horoscope",
+      "cricket",
+      "bollywood",
+      "box office",
+      "gold rate today",
+      "gold price today",
+      "silver rate",
+      "petrol price today",
+      "fuel price today",
+      "weather",
+      "lottery",
+      "recipe"
+    ]
+  }
 }
