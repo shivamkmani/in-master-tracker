@@ -682,10 +682,10 @@ async function showData(page, q) {
 function showSources() {
   V = null;
   const m = G.meta;
-  const stat = (s) => !s ? el("span", { class: "muted" }, "Not run") : s.ok ? el("span", { class: "ok" }, "Updated") : el("span", { class: "fail", title: s.error || "" }, "Failed, showing last good data");
+  const stat = (s, k) => k === "ipi_sdg" ? el("span", { class: "muted" }, "Static dataset") : !s ? el("span", { class: "muted" }, "Not run") : s.ok ? el("span", { class: "ok" }, "Updated") : el("span", { class: "fail", title: s.error || "" }, "Failed, showing last good data");
   const groups = { nas: "National accounts", gsdp: "State accounts", gsva: "State accounts", cpi: "CPI", iip: "IIP", wpi: "WPI", isp: "ISP", plfs: "PLFS", asi: "ASI", rbi_trade: "RBI", rbi_fx: "RBI", rbi_commodity: "RBI" };
   const data = el("table", { class: "src-table" }, el("thead", null, el("tr", null, ["Dataset", "Publisher", "Frequency", "Status", "Notes"].map((t) => el("th", null, t)))),
-    el("tbody", null, Object.entries(m.datasets).map(([k, d]) => el("tr", null, el("td", null, el("a", { href: d.url, target: "_blank", rel: "noopener" }, d.title)), el("td", null, d.publisher), el("td", null, d.frequency), el("td", null, stat(m.status[groups[k]])), el("td", null, d.note)))));
+    el("tbody", null, Object.entries(m.datasets).map(([k, d]) => el("tr", null, el("td", null, el("a", { href: d.url, target: "_blank", rel: "noopener" }, d.title)), el("td", null, d.publisher), el("td", null, d.frequency), el("td", null, stat(m.status[groups[k]], k)), el("td", null, d.note)))));
   const feeds = el("table", { class: "src-table" }, el("thead", null, el("tr", null, ["Feed", "Type", "Status", "Items read"].map((t) => el("th", null, t)))),
     el("tbody", null, Object.entries(G.news.status).map(([k, s]) => el("tr", null, el("td", null, k), el("td", null, s.type || (k.startsWith("PIB") ? "Government" : "")), el("td", null, s.ok ? el("span", { class: "ok" }, "Read") : el("span", { class: "fail", title: s.error || "" }, "Failed")), el("td", { class: "n" }, s.items ?? "–")))));
   document.getElementById("app").replaceChildren(
@@ -1109,6 +1109,282 @@ function editorSignIn(app) {
   tok.focus();
 }
 
+/* ---------- chart to PNG: copy to clipboard or download ---------- */
+/* Draws the chart with its title, legend and source line on a canvas, so a
+   pasted chart carries its own context. CSS variables are resolved to the
+   current theme's colours, since a standalone image can't read them. */
+function chartTitle(rows) {
+  const one = (k) => { const u = uniq(rows.map((r) => r[k])); return u.length === 1 ? u[0] : null; };
+  const parts = [one("ind") || uniq(rows.map((r) => r.ind)).slice(0, 2).join(", "), one("seg"), one("geo")].filter(Boolean);
+  return uniq(parts).join(" · ") + (rows[0] && rows[0].unit ? " (" + rows[0].unit + ")" : "");
+}
+async function chartPng(wrap, title, cite) {
+  const { svg, series, W, H } = wrap._chart;
+  const css = getComputedStyle(document.documentElement);
+  const resolve = (v) => v && v.startsWith("var(") ? css.getPropertyValue(v.slice(4, -1)).trim() : v;
+  const clone = svg.cloneNode(true);
+  clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+  clone.setAttribute("width", W); clone.setAttribute("height", H);
+  clone.setAttribute("font-family", "Helvetica, Arial, sans-serif");
+  clone.querySelectorAll("[visibility=hidden]").forEach((n) => n.remove());
+  clone.querySelectorAll("*").forEach((n) => { for (const a of ["stroke", "fill"]) if (n.hasAttribute(a)) n.setAttribute(a, resolve(n.getAttribute(a))); });
+  const img = new Image();
+  img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(new XMLSerializer().serializeToString(clone));
+  await img.decode();
+
+  const S = 2, PAD = 28, FW = W + PAD * 2;
+  const font = (w, px) => w + " " + px + "px 'Nunito Sans', Helvetica, Arial, sans-serif";
+  const ctx0 = document.createElement("canvas").getContext("2d");
+  const wrapText = (text, f, max) => {
+    ctx0.font = f; const out = []; let line = "";
+    for (const w of text.split(" ")) { const t = line ? line + " " + w : w; if (ctx0.measureText(t).width > max && line) { out.push(line); line = w; } else line = t; }
+    if (line) out.push(line); return out;
+  };
+  const titleLines = wrapText(title, font(700, 18), W);
+  // Legend items flow left to right, wrapping as needed.
+  ctx0.font = font(400, 12);
+  const legendRows = [[]]; let x = 0;
+  if (series.length > 1) for (const q of series) {
+    const w = 22 + ctx0.measureText(q.name).width + 18;
+    if (x + w > W && legendRows[legendRows.length - 1].length) { legendRows.push([]); x = 0; }
+    legendRows[legendRows.length - 1].push({ q, x }); x += w;
+  }
+  const citeLines = wrapText(cite + " Chart: India Master Tracker.", font(400, 11), W);
+  const legendH = series.length > 1 ? legendRows.length * 20 + 6 : 0;
+  const FH = PAD + titleLines.length * 24 + 8 + legendH + H + 10 + citeLines.length * 15 + PAD;
+  const c = document.createElement("canvas");
+  c.width = FW * S; c.height = FH * S;
+  const ctx = c.getContext("2d");
+  ctx.scale(S, S);
+  ctx.fillStyle = resolve("var(--surface)") || "#fff"; ctx.fillRect(0, 0, FW, FH);
+  let y = PAD;
+  ctx.fillStyle = resolve("var(--ink)"); ctx.font = font(700, 18); ctx.textBaseline = "top";
+  for (const l of titleLines) { ctx.fillText(l, PAD, y); y += 24; }
+  y += 8;
+  ctx.font = font(400, 12);
+  for (const row of series.length > 1 ? legendRows : []) {
+    for (const { q, x: lx } of row) {
+      ctx.fillStyle = resolve(q.color); ctx.fillRect(PAD + lx, y + 6, 14, 3);
+      ctx.fillStyle = resolve("var(--ink2)"); ctx.fillText(q.name, PAD + lx + 22, y);
+    }
+    y += 20;
+  }
+  if (legendH) y += 6;
+  ctx.drawImage(img, PAD, y, W, H); y += H + 10;
+  ctx.fillStyle = resolve("var(--ink3)"); ctx.font = font(400, 11);
+  for (const l of citeLines) { ctx.fillText(l, PAD, y); y += 15; }
+  return new Promise((res) => c.toBlob(res, "image/png"));
+}
+/* Copy / Download buttons for any chart element carrying wrap._chart. */
+function chartButtonsFor(wrap, title, cite, name) {
+  name = name || "india-tracker-" + V.page + "-chart.png";
+  const save = (blob) => {
+    const a = el("a", { href: URL.createObjectURL(blob), download: name });
+    a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  };
+  const copyBtn = el("button", { type: "button" }, "Copy chart");
+  copyBtn.addEventListener("click", async () => {
+    const old = copyBtn.textContent;
+    const blob = chartPng(wrap, title, cite);  // a promise, so Safari keeps the click's permission
+    try {
+      if (!window.ClipboardItem || !navigator.clipboard || !navigator.clipboard.write) throw new Error("unsupported");
+      await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+      copyBtn.textContent = "Copied";
+    } catch (e) {
+      save(await blob);
+      copyBtn.textContent = "Downloaded instead";
+    }
+    setTimeout(() => { copyBtn.textContent = old; }, 1600);
+  });
+  const dlBtn = el("button", { type: "button", onclick: async () => save(await chartPng(wrap, title, cite)) }, "Download chart");
+  return [copyBtn, dlBtn];
+}
+
+/* ---------- Human development: India Policy Insights (Harvard) SDG estimates ---------- */
+const HD_METRICS = { mean: "Average", met: "Villages meeting the 2030 SDG target", sd: "Variation between villages (SD)" };
+async function loadHd() {
+  if (!G.hd) G.hd = await getJSON("hd").catch(() => null);
+  return G.hd;
+}
+function hdBars(items, ind, metric, indiaVal) {
+  // items: [{label, v}] already sorted; horizontal bars, one unit.
+  const NS = "http://www.w3.org/2000/svg";
+  const s = (t, a, txt) => { const n = document.createElementNS(NS, t); for (const k in a) n.setAttribute(k, a[k]); if (txt != null) n.textContent = txt; return n; };
+  const W = 860, rowH = 20, L = 230, R = 64, T = 24, B = 22;
+  const H = T + items.length * rowH + B;
+  const vals = items.map((x) => x.v).filter((v) => v != null);
+  const hi = Math.max(...vals, indiaVal ?? 0) * 1.05 || 1;
+  const x = (v) => L + (v / hi) * (W - L - R);
+  const svg = s("svg", { viewBox: "0 0 " + W + " " + H, role: "img", "aria-label": "Bar chart: " + ind.name });
+  for (let i = 0; i <= 4; i++) {
+    const v = (hi * i) / 4;
+    svg.append(s("line", { x1: x(v), x2: x(v), y1: T, y2: H - B, stroke: "var(--line2)" }));
+    svg.append(s("text", { x: x(v), y: H - 6, "text-anchor": "middle", "font-size": 11, fill: "var(--ink3)" }, fmt(Math.round(v * 10) / 10)));
+  }
+  items.forEach((it, i) => {
+    const y = T + i * rowH;
+    svg.append(s("text", { x: L - 8, y: y + 14, "text-anchor": "end", "font-size": 12, fill: "var(--ink2)" }, it.label.length > 34 ? it.label.slice(0, 33) + "…" : it.label));
+    if (it.v == null) { svg.append(s("text", { x: L + 4, y: y + 14, "font-size": 11, fill: "var(--ink3)" }, "no estimate")); return; }
+    const bar = s("rect", { x: L, y: y + 3, width: Math.max(1, x(it.v) - L), height: rowH - 6, rx: 2, fill: it.hl ? "var(--s2)" : "var(--s1)" });
+    bar.append(s("title", null, it.label + ": " + fmt(it.v)));
+    svg.append(bar);
+    svg.append(s("text", { x: x(it.v) + 5, y: y + 14, "font-size": 11, fill: "var(--ink2)" }, fmt(it.v)));
+  });
+  if (indiaVal != null) {
+    svg.append(s("line", { x1: x(indiaVal), x2: x(indiaVal), y1: T - 4, y2: H - B, stroke: "var(--ink)", "stroke-dasharray": "4 3" }));
+    svg.append(s("text", { x: x(indiaVal), y: 13, "text-anchor": "middle", "font-size": 11, "font-weight": 700, fill: "var(--ink)" }, "India " + fmt(indiaVal)));
+  }
+  const wrap = el("div", { class: "chart" }, svg);
+  wrap._chart = { svg, series: [{ name: ind.name, color: "var(--s1)" }], W, H };
+  return wrap;
+}
+
+async function showHd(q) {
+  const app = document.getElementById("app");
+  const D = await loadHd();
+  V = { page: "hd" };
+  if (!D) {
+    app.replaceChildren(el("h1", null, "Human development"), el("p", { class: "empty" }, "The SDG dataset hasn't been loaded yet. It is built on GitHub with the workflow's “Human development” option."));
+    return;
+  }
+  const inds = D.indicators, stateName = Object.fromEntries(D.states.map((s) => [s.id, s.name]));
+  const H = { ind: +(q.get("ind") ?? 0), lvl: q.get("lvl") || "s", st: q.get("st") || "", m: q.get("m") || "mean", all: false,
+    d: q.get("d") ? +q.get("d") : null, vq: "" };
+  if (!(H.ind >= 0 && H.ind < inds.length)) H.ind = 0;
+  const save = () => {
+    const p = new URLSearchParams({ ind: H.ind, lvl: H.lvl, m: H.m });
+    if (H.st) p.set("st", H.st);
+    if (H.d != null) p.set("d", H.d);
+    history.replaceState(null, "", "#/hd?" + p);
+  };
+  const better = (i, a, b) => inds[i].higher_better == null || a == null || b == null ? 0 : (inds[i].higher_better ? a - b : b - a);
+  const valOf = (row, i, m) => row[m] ? row[m][i] : null;
+  const distLabel = (d) => d.name + (H.st ? "" : ", " + (stateName[d.state] || ""));
+
+  const main = el("section", { class: "card", "aria-label": "Ranking" });
+  const side = el("aside", { class: "card", "aria-label": "District profile" });
+
+  function rankRows() {
+    const i = H.ind, m = H.lvl === "s" && H.m === "sd" ? "mean" : H.m;
+    let rows = H.lvl === "s" ? D.states.map((s) => ({ label: s.name, v: valOf(s, i, m), id: s.id }))
+      : D.districts.filter((d) => !H.st || String(d.state) === H.st).map((d) => ({ label: distLabel(d), v: valOf(d, i, m), id: d.id, hl: d.id === H.d }));
+    const hb = inds[i].higher_better;
+    // "Best first": for spread (sd) less variation is better; for target share more is better.
+    const dir = m === "sd" ? -1 : m === "met" ? 1 : hb === false ? -1 : 1;
+    rows.sort((a, b) => a.v == null ? 1 : b.v == null ? -1 : dir * (b.v - a.v));
+    return { rows, m };
+  }
+
+  function drawMain() {
+    main.replaceChildren();
+    const ind = inds[H.ind];
+    const sel = el("select", { "aria-label": "Indicator", onchange: (e) => { H.ind = +e.target.value; save(); drawMain(); drawSide(); } });
+    for (const g of uniq(inds.map((x) => x.group))) {
+      sel.append(el("optgroup", { label: g }, inds.map((x, i) => [x, i]).filter(([x]) => x.group === g)
+        .map(([x, i]) => el("option", { value: i, selected: i === H.ind }, x.name))));
+    }
+    const lvl = el("div", { class: "seg-btns" }, [["s", "States"], ["d", "Districts"]].map(([k, t]) =>
+      el("button", { type: "button", class: H.lvl === k ? "on" : "", onclick: () => { H.lvl = k; H.all = false; save(); drawMain(); } }, t)));
+    const stSel = el("select", { "aria-label": "State", onchange: (e) => { H.st = e.target.value; H.all = false; save(); drawMain(); } },
+      el("option", { value: "" }, "All states"), D.states.map((s) => el("option", { value: s.id, selected: String(s.id) === H.st }, s.name)));
+    const mSel = el("select", { "aria-label": "Measure", onchange: (e) => { H.m = e.target.value; save(); drawMain(); } },
+      Object.entries(HD_METRICS).filter(([k]) => k !== "sd" || H.lvl === "d").map(([k, t]) => el("option", { value: k, selected: k === H.m }, t)));
+    main.append(el("div", { class: "card-h" }, el("h2", null, "Rank states and districts")),
+      el("div", { class: "filters" }, el("div", { class: "f" }, "Indicator", sel), el("div", { class: "f" }, "Show", lvl),
+        H.lvl === "d" ? el("div", { class: "f" }, "Within", stSel) : null, el("div", { class: "f" }, "Measure", mSel)));
+
+    const { rows, m } = rankRows();
+    const dirTxt = m === "sd" ? "Less variation first." : m === "met" ? "Highest share first." : ind.higher_better === false ? "Lower is better, so the lowest comes first." : ind.higher_better ? "Higher is better, so the highest comes first." : "";
+    const LIMIT = 15;
+    let shown = rows;
+    if (!H.all && rows.length > LIMIT * 2) shown = [...rows.slice(0, LIMIT), { label: "· · · " + (rows.length - LIMIT * 2) + " more · · ·", v: null, gap: true }, ...rows.slice(-LIMIT)];
+    const indiaVal = m === "sd" ? null : D.india[m] ? D.india[m][H.ind] : null;
+    const chartEl = hdBars(shown.filter((r) => !r.gap).length === shown.length ? shown : shown.map((r) => r.gap ? { label: r.label, v: null } : r), ind, m, indiaVal);
+    const title = ind.name + " (" + (m === "mean" ? ind.unit : m === "met" ? "% of villages meeting the 2030 target" : "SD across villages") + ") · " +
+      (H.lvl === "s" ? "States" : H.st ? stateName[H.st] + " districts" : "All districts") + " · 2021";
+    const cite = "Source: " + D.source.publisher + ", " + D.source.title + " (" + D.source.licence + ").";
+    const csvText = (sep) => [["Rank", H.lvl === "s" ? "State" : "District", title].join(sep),
+      ...rows.map((r, k) => [k + 1, r.label, r.v ?? ""].map((x) => sep === "," && /[",]/.test(String(x)) ? '"' + String(x).replace(/"/g, '""') + '"' : x).join(sep))].join("\n");
+    main.append(el("p", { class: "muted count" }, title + ". " + dirTxt), chartEl,
+      el("div", { class: "tfoot" },
+        el("span", { class: "muted" }, rows.length + (H.lvl === "s" ? " states" : " districts") + (shown !== rows ? " · showing best and worst " + LIMIT : "")),
+        el("div", { class: "actions" },
+          rows.length > LIMIT * 2 ? el("button", { type: "button", onclick: () => { H.all = !H.all; drawMain(); } }, H.all ? "Best and worst only" : "Show all " + rows.length) : null,
+          chartButtonsFor(chartEl, title, cite),
+          el("button", { type: "button", onclick: () => download("india-tracker-sdg-ranking.csv", csvText(",")) }, "Download CSV"),
+          el("button", { type: "button", onclick: (e) => copy(csvText("\t"), e.target) }, "Copy for Excel"))),
+      el("p", { class: "cite" }, cite + " " + D.source.note));
+    if (H.lvl === "d") chartEl.addEventListener("click", (e) => {
+      const t = e.target.closest("rect"); if (!t) return;
+      const label = t.querySelector("title").textContent.split(":")[0];
+      const d = D.districts.find((x) => distLabel(x) === label);
+      if (d) { H.d = d.id; save(); drawMain(); drawSide(); side.scrollIntoView({ behavior: "smooth", block: "start" }); }
+    });
+  }
+
+  function drawSide() {
+    side.replaceChildren();
+    const opts = [el("option", { value: "" }, "Choose a district")];
+    for (const s of D.states) {
+      opts.push(el("optgroup", { label: s.name }, D.districts.filter((d) => d.state === s.id).sort((a, b) => a.name.localeCompare(b.name))
+        .map((d) => el("option", { value: d.id, selected: d.id === H.d }, d.name))));
+    }
+    const dSel = el("select", { "aria-label": "District", onchange: (e) => { H.d = e.target.value ? +e.target.value : null; save(); drawSide(); if (H.lvl === "d") drawMain(); } }, opts);
+    side.append(el("div", { class: "card-h" }, el("h2", null, "District profile")), dSel);
+    const d = D.districts.find((x) => x.id === H.d);
+    if (!d) { side.append(el("p", { class: "muted" }, "Pick a district to compare all " + inds.length + " indicators with its state and India, and to look up its villages. You can also click a district's bar in the ranking.")); return; }
+    const st = D.states.find((s) => s.id === d.state);
+    side.append(el("p", { class: "muted count" }, (st ? st.name + " · " : "") + d.villages.toLocaleString("en-IN") + " villages estimated"));
+    const ul = el("ul", { class: "hd-prof" });
+    inds.forEach((ind, i) => {
+      const dv = d.mean ? d.mean[i] : null, sv = st && st.mean ? st.mean[i] : null, nv = D.india.mean ? D.india.mean[i] : null;
+      const b = better(i, dv, nv);
+      ul.append(el("li", { class: i === H.ind ? "on" : "", onclick: () => { H.ind = i; save(); drawMain(); drawSide(); } },
+        el("span", { class: "n" }, ind.name),
+        el("b", { class: b > 0 ? "good" : b < 0 ? "bad" : "" }, dv == null ? "–" : fmt(dv)),
+        el("small", null, "State " + (sv == null ? "–" : fmt(sv)) + " · India " + (nv == null ? "–" : fmt(nv)) +
+          (d.met && d.met[i] != null ? " · " + fmt(d.met[i]) + "% of villages meet target" : ""))));
+    });
+    side.append(el("p", { class: "cite" }, "Green: better than the India average. Red: worse. Click an indicator to rank it."), ul);
+    const vbox = el("div");
+    side.append(el("h3", { class: "sec-h" }, "Villages"), vbox);
+    vbox.append(el("button", { type: "button", onclick: () => drawVillages(d, vbox) }, "Look up " + d.villages.toLocaleString("en-IN") + " villages"));
+  }
+
+  async function drawVillages(d, box) {
+    box.replaceChildren(el("p", { class: "muted" }, "Loading villages…"));
+    let vs;
+    try { vs = await getJSON("hd/v/" + d.id); } catch (e) { box.replaceChildren(el("p", { class: "empty" }, "Couldn't load villages: " + e.message)); return; }
+    const i = H.ind, ind = inds[i], col = 2 + i;
+    const meets = (v) => v == null || ind.target_approx == null || ind.higher_better == null ? null : ind.higher_better ? v >= ind.target_approx : v <= ind.target_approx;
+    const search = el("input", { type: "search", placeholder: "Search " + vs.length + " villages", "aria-label": "Search villages" });
+    const table = el("div", { class: "tablebox" });
+    const draw = () => {
+      const t = search.value.trim().toLowerCase();
+      const rows = vs.filter((v) => !t || v[1].toLowerCase().includes(t))
+        .sort((a, b) => a[col] == null ? 1 : b[col] == null ? -1 : (ind.higher_better === false ? a[col] - b[col] : b[col] - a[col]));
+      table.replaceChildren(el("table", null,
+        el("thead", null, el("tr", null, el("th", null, "Village"), el("th", { class: "n" }, ind.name + " (" + ind.unit + ")"), el("th", null, "2030 target"))),
+        el("tbody", null, rows.slice(0, 300).map((v) => el("tr", null, el("td", null, v[1]), el("td", { class: "n" }, v[col] == null ? "–" : fmt(v[col])),
+          el("td", null, meets(v[col]) == null ? "" : meets(v[col]) ? "Met" : "Not yet"))))));
+      if (rows.length > 300) table.append(el("p", { class: "cite" }, "Showing 300 of " + rows.length + ". Search to narrow, or download all."));
+    };
+    search.addEventListener("input", draw);
+    const csv = () => [["Village ID", "Village", ...inds.map((x) => x.name + " (" + x.unit + ")")].join(","),
+      ...vs.map((v) => [v[0], '"' + v[1].replace(/"/g, '""') + '"', ...v.slice(2).map((x) => x ?? "")].join(","))].join("\n");
+    box.replaceChildren(el("p", { class: "muted count" }, "Sorted by " + ind.name + (ind.higher_better === false ? ", lowest first" : ", highest first") + ". Target status uses the dataset's 2030 SDG target."),
+      search, table, el("div", { class: "actions", style: "margin-top:8px" },
+        el("button", { type: "button", onclick: () => download("villages-" + d.name.replace(/\W+/g, "-").toLowerCase() + ".csv", csv()) }, "Download all indicators (CSV)")));
+    draw();
+  }
+
+  app.replaceChildren(el("h1", null, "Human development"),
+    el("p", { class: "lede" }, "Thirty-five SDG indicators for every state, district and rural village: poverty, health coverage, nutrition, maternal and child health, women and girls, and water, sanitation and fuel."),
+    el("p", { class: "caveat" }, "Model-based estimates for 2021 from Harvard's India Policy Insights, built from NFHS-5 (2019-21) and the 2011 Census. They describe rural villages, so district figures can differ from official NFHS district reports. State and India figures are simple averages of village estimates."),
+    el("div", { class: "grid" }, main, side));
+  save(); drawMain(); drawSide();
+}
+
 /* ---------- "Sectors" dropdown in the tab bar ---------- */
 const SECTOR_KEYS = Object.keys(PAGES).filter((k) => k !== "macro" && k !== "states");
 function closeSectors() {
@@ -1160,7 +1436,7 @@ document.getElementById("nav").addEventListener("scroll", () => { if (Date.now()
 async function route() {
   peekStop();
   const { page, q } = readHash();
-  const name = PAGES[page] || ["sources", "daily", "dashboard", "editor"].includes(page) ? page : "dashboard";
+  const name = PAGES[page] || ["sources", "daily", "dashboard", "editor", "hd"].includes(page) ? page : "dashboard";
   closeSectors();
   document.querySelectorAll("nav a, .sec-menu a").forEach((a) => {
     if (a.dataset.p === name) a.setAttribute("aria-current", "page");
@@ -1174,6 +1450,7 @@ async function route() {
     if (name === "sources") showSources();
     else if (name === "daily") { await loadPicks(); showDaily(q); }
     else if (name === "editor") { await loadPicks(); showEditor(); }
+    else if (name === "hd") await showHd(q);
     else if (name === "dashboard") { await loadPicks(); await showHome(); peekStart(); }
     else await showData(name, q);
   } catch (e) {
@@ -1191,7 +1468,7 @@ async function start() {
   const nav = document.getElementById("nav");
   const link = (k, label) => { const a = el("a", { href: "#/" + k }, label); a.dataset.p = k; return a; };
   nav.append(link("dashboard", "Dashboard"), link("daily", "Daily updates"), link("macro", PAGES.macro.label),
-    link("states", PAGES.states.label), sectorsButton(), link("sources", "Sources"));
+    link("states", PAGES.states.label), link("hd", "Human development"), sectorsButton(), link("sources", "Sources"));
   try {
     [G.meta, G.news] = await Promise.all([getJSON("meta"), getJSON("news")]);
   } catch (e) {

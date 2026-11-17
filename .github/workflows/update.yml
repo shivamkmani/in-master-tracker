@@ -9,6 +9,10 @@ on:
         description: "Also refresh ASI (slow, annual data)"
         type: boolean
         default: false
+      sdg:
+        description: "Human development only: rebuild the SDG data from Harvard (one-off, ~10 min)"
+        type: boolean
+        default: false
   push:
     branches: [main]
 
@@ -33,13 +37,19 @@ jobs:
         with:
           python-version: "3.12"
       - name: Fetch developments
-        if: github.event_name != 'push'
+        if: github.event_name != 'push' && inputs.sdg != true
         run: |
           python pipeline/fetch_news.py
           python pipeline/backfill_news.py 1
       - name: Fetch data
-        if: github.event_name != 'push'
+        if: github.event_name != 'push' && inputs.sdg != true
         run: python pipeline/fetch_data.py ${{ inputs.full == true && '--full' || '--skip-asi' }}
+      - name: Build Human development data (Harvard SDG estimates)
+        if: inputs.sdg == true
+        run: |
+          pip install -q openpyxl
+          python pipeline/fetch_sdg.py
+          rm -f sdg.xlsx
       - name: Import daily updates document
         # Runs on every trigger, so uploading a new copy to picks/ updates the
         # site within minutes. A bad document must not block the data refresh.

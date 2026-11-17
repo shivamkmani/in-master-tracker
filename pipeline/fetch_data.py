@@ -39,6 +39,7 @@ DATASETS = {
     "asi": {"title": "Annual Survey of Industries", "publisher": "MoSPI", "url": MOSPI, "frequency": "Annual", "note": "Registered factories only, NIC 2008, so it excludes small informal units. Converted from ₹ lakh to ₹ crore. Values can be withheld where few factories report."},
     "rbi_trade": {"title": "India's foreign trade", "publisher": "RBI, via MoSPI", "url": MOSPI, "frequency": "Monthly", "note": "US$ million. MoSPI's copy of this RBI series lags; check the latest period shown."},
     "rbi_fx": {"title": "Foreign exchange reserves", "publisher": "RBI, via MoSPI", "url": MOSPI, "frequency": "Monthly", "note": "US$ million. MoSPI's copy of this RBI series lags; check the latest period shown."},
+    "ipi_sdg": {"title": "India Policy Insights: SDG estimates by state, district and village", "publisher": "Harvard University, Harvard Dataverse", "url": "https://dataverse.harvard.edu/dataset.xhtml?persistentId=doi:10.7910/DVN/GO8W1W", "frequency": "One-off (2021 estimates)", "note": "Model-based estimates from NFHS-5 and the 2011 Census for 35 SDG indicators, rural villages. CC0. Rebuilt only on request."},
     "rbi_commodity": {"title": "Exports and imports of major commodities", "publisher": "RBI, via MoSPI", "url": MOSPI, "frequency": "Annual", "note": "US$ million, financial year. National only: this series has no state split."},
 }
 
