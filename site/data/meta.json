@@ -1,5 +1,5 @@
 {
- "updated": "2026-11-17T07:55+00:00",
+ "updated": "2026-11-17T09:57+00:00",
  "datasets": {
   "nas": {
    "title": "National Accounts Statistics",
@@ -77,6 +77,13 @@
    "url": "https://esankhyiki.mospi.gov.in/",
    "frequency": "Monthly",
    "note": "US$ million. MoSPI's copy of this RBI series lags; check the latest period shown."
+  },
+  "ipi_sdg": {
+   "title": "India Policy Insights: SDG estimates by state, district and village",
+   "publisher": "Harvard University, Harvard Dataverse",
+   "url": "https://dataverse.harvard.edu/dataset.xhtml?persistentId=doi:10.7910/DVN/GO8W1W",
+   "frequency": "One-off (2021 estimates)",
+   "note": "Model-based estimates from NFHS-5 and the 2011 Census for 35 SDG indicators, rural villages. CC0. Rebuilt only on request."
   },
   "rbi_commodity": {
    "title": "Exports and imports of major commodities",
