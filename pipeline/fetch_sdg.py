@@ -37,7 +37,7 @@ SOURCE_URL = "https://dataverse.harvard.edu/dataset.xhtml?persistentId=" + DOI
 UA = {"User-Agent": "Mozilla/5.0 (compatible; india-tracker/1.0)", "Accept": "*/*"}
 
 GROUPS = [
-    ("Poverty and basic services", r"poverty|basic services|electricity"),
+    ("Poverty and basic services", r"poverty|basic services|electricity|internet"),
     ("Health coverage", r"insurance"),
     ("Nutrition", r"stunting|wasting|underweight|anaemia|overweight"),
     ("Maternal and child health", r"birth|mortality|contracept|pregnan|vaccin|antenatal|delivery"),
@@ -45,6 +45,22 @@ GROUPS = [
     ("Tobacco and alcohol", r"tobacco|alcohol"),
     ("Water, sanitation and fuel", r"water|sanitation|hand-washing|handwashing|fuel|cooking"),
 ]
+
+
+# Direction by meaning, used when the data can't show it (no village has met
+# the 2030 target yet, so achieved and not-achieved can't be compared).
+HIGHER_BETTER_RX = re.compile(r"insurance|access|skilled birth|contracept|vaccin|mobile phone|improved|hand-washing|"
+                              r"handwashing|electricity|clean fuel|bank account|registration|internet|literacy", re.I)
+LOWER_BETTER_RX = re.compile(r"poverty|stunting|wasting|overweight|underweight|anaemia|mortality|pregnan|tobacco|"
+                             r"alcohol|violence|marriage", re.I)
+
+
+def direction_by_name(name):
+    if HIGHER_BETTER_RX.search(name):
+        return True
+    if LOWER_BETTER_RX.search(name):
+        return False
+    return None
 
 
 def group_of(name):
@@ -161,8 +177,13 @@ def main():
         if ok[1] > float("-inf") and no[1] > float("-inf"):
             higher = (ok[0] + ok[1]) > (no[0] + no[1])
             target = round(ok[0], 2) if higher else round(ok[1], 2)
+        named = direction_by_name(name)
+        if higher is not None and named is not None and higher != named:
+            print("WARNING: direction from data and from name disagree for", name)
         indicators.append({"name": name, "unit": unit or "%", "group": group_of(name),
-                           "higher_better": higher, "target_approx": target})
+                           "higher_better": higher if higher is not None else named,
+                           "direction_from": "data" if higher is not None else "name" if named is not None else None,
+                           "target_approx": target})
 
     # ---- districts: District ID, then (Mean, SD) per indicator
     ws = wb["District Estimates"]

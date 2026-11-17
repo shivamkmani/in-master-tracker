@@ -1224,7 +1224,7 @@ function hdBars(items, ind, metric, indiaVal) {
   items.forEach((it, i) => {
     const y = T + i * rowH;
     svg.append(s("text", { x: L - 8, y: y + 14, "text-anchor": "end", "font-size": 12, fill: "var(--ink2)" }, it.label.length > 34 ? it.label.slice(0, 33) + "…" : it.label));
-    if (it.v == null) { svg.append(s("text", { x: L + 4, y: y + 14, "font-size": 11, fill: "var(--ink3)" }, "no estimate")); return; }
+    if (it.v == null) { if (!it.gap) svg.append(s("text", { x: L + 4, y: y + 14, "font-size": 11, fill: "var(--ink3)" }, "no estimate")); return; }
     const bar = s("rect", { x: L, y: y + 3, width: Math.max(1, x(it.v) - L), height: rowH - 6, rx: 2, fill: it.hl ? "var(--s2)" : "var(--s1)" });
     bar.append(s("title", null, it.label + ": " + fmt(it.v)));
     svg.append(bar);
@@ -1299,7 +1299,7 @@ async function showHd(q) {
     let shown = rows;
     if (!H.all && rows.length > LIMIT * 2) shown = [...rows.slice(0, LIMIT), { label: "· · · " + (rows.length - LIMIT * 2) + " more · · ·", v: null, gap: true }, ...rows.slice(-LIMIT)];
     const indiaVal = m === "sd" ? null : D.india[m] ? D.india[m][H.ind] : null;
-    const chartEl = hdBars(shown.filter((r) => !r.gap).length === shown.length ? shown : shown.map((r) => r.gap ? { label: r.label, v: null } : r), ind, m, indiaVal);
+    const chartEl = hdBars(shown.filter((r) => !r.gap).length === shown.length ? shown : shown.map((r) => r.gap ? { label: r.label, v: null, gap: true } : r), ind, m, indiaVal);
     const title = ind.name + " (" + (m === "mean" ? ind.unit : m === "met" ? "% of villages meeting the 2030 target" : "SD across villages") + ") · " +
       (H.lvl === "s" ? "States" : H.st ? stateName[H.st] + " districts" : "All districts") + " · 2021";
     const cite = "Source: " + D.source.publisher + ", " + D.source.title + " (" + D.source.licence + ").";
