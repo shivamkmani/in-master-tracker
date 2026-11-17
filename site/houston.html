@@ -79,7 +79,7 @@ nav a.on{color:var(--cyan);border-color:var(--edge);background:var(--panel);box-
 .events li{padding:7px 10px;border-bottom:1px dashed #13253a}
 .events small{display:block;color:var(--dim);font-size:11px;margin-top:2px}
 /* stations */
-.stations{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:10px;margin-top:10px}
+.stations{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin-top:10px}
 .st{padding:9px 10px}
 .st .code{font:700 18px var(--cond);letter-spacing:.14em;color:var(--cyan)}
 .st .name{font:500 10px var(--cond);letter-spacing:.2em;color:var(--dim);text-transform:uppercase}
@@ -94,7 +94,7 @@ nav a.on{color:var(--cyan);border-color:var(--edge);background:var(--panel);box-
 .crawl span{margin:0 26px}.crawl span::before{content:"◆ ";color:var(--amber)}
 @keyframes crawl{from{transform:translateX(0)}to{transform:translateX(-50%)}}
 @media (prefers-reduced-motion:reduce){.crawl .track div{animation:none}}
-@media (max-width:1200px){.tele{grid-template-columns:repeat(3,1fr)}.deck{grid-template-columns:1fr 1fr}.deck>:nth-child(2){grid-column:1/-1;order:-1}.stations{grid-template-columns:repeat(4,1fr)}}
+@media (max-width:1200px){.tele{grid-template-columns:repeat(3,1fr)}.deck{grid-template-columns:1fr 1fr}.deck>:nth-child(2){grid-column:1/-1;order:-1}.stations{grid-template-columns:repeat(5,1fr)}}
 @media (max-width:700px){.wrap{padding:8px 10px}.top{grid-template-columns:1fr;gap:10px}.clocks{justify-content:space-between;gap:10px}.clk b{font-size:17px}.tele{grid-template-columns:1fr 1fr}.deck{grid-template-columns:1fr}.stations{grid-template-columns:1fr 1fr}.tm b{font-size:23px}}
 </style>
 </head>
@@ -110,7 +110,7 @@ nav a.on{color:var(--cyan);border-color:var(--edge);background:var(--panel);box-
     <div class="status" id="status">Checking systems<small>&nbsp;</small></div>
   </header>
   <nav><a class="on" href="houston.html">Dashboard</a><a href="./#/daily">Daily updates</a><a href="./#/macro">India macro</a><a href="./#/states">States</a>
-    <details class="dd"><summary>Sectors ▾</summary><div><a href="./#/semiconductors">Semiconductors</a><a href="./#/electronics">Electronics</a><a href="./#/logistics">Logistics</a><a href="./#/textiles">Textiles</a><a href="./#/pharma">Pharma</a><a href="./#/energy">Energy</a><a href="./#/finance">Finance</a></div></details>
+    <details class="dd"><summary>Sectors ▾</summary><div><a href="./#/semiconductors">Semiconductors</a><a href="./#/electronics">Electronics</a><a href="./#/logistics">Logistics</a><a href="./#/textiles">Textiles</a><a href="./#/auto">Auto</a><a href="./#/chemicals">Chemicals</a><a href="./#/pharma">Pharma</a><a href="./#/energy">Energy</a><a href="./#/finance">Finance</a></div></details>
     <a href="./#/sources">Sources</a><a class="exit" href="./#/dashboard">Exit mission control ✕</a></nav>
 
   <section class="tele" id="tele" aria-label="Headline indicators"></section>
@@ -243,7 +243,7 @@ const SRC = (u) => { const h = (u || "").replace(/^https?:\/\/(www\.)?/, "").spl
   // stations
   const weekAgo = new Date(Date.now() - 7 * 864e5).toISOString().slice(0, 10);
   const stations = document.getElementById("stations");
-  for (const [code, name, key] of [["SEMI", "Semiconductors", "semiconductors"], ["ELEC", "Electronics", "electronics"], ["LOGI", "Logistics", "logistics"], ["TXTL", "Textiles", "textiles"], ["PHRM", "Pharma", "pharma"], ["ENRG", "Energy", "energy"], ["FINC", "Finance", "finance"], ["STAT", "States", "state"]]) {
+  for (const [code, name, key] of [["SEMI", "Semiconductors", "semiconductors"], ["ELEC", "Electronics", "electronics"], ["LOGI", "Logistics", "logistics"], ["TXTL", "Textiles", "textiles"], ["AUTO", "Auto", "auto"], ["CHEM", "Chemicals", "chemicals"], ["PHRM", "Pharma", "pharma"], ["ENRG", "Energy", "energy"], ["FINC", "Finance", "finance"], ["STAT", "States", "state"]]) {
     const rel = news.items.filter((r) => key === "state" ? r.scope === "State" : r.sectors.includes(key));
     const wk = rel.filter((r) => r.date >= weekAgo).length;
     stations.append($("a", { class: "panel st", href: key === "state" ? "./#/states" : "./#/" + key }, $("div", { class: "code" }, code), $("div", { class: "name" }, name),
