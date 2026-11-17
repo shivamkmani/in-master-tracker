@@ -34,6 +34,7 @@ VDIR = os.path.join(ROOT, "site", "data", "hd", "v")
 DOI = "doi:10.7910/DVN/GO8W1W"
 API = "https://dataverse.harvard.edu/api"
 SOURCE_URL = "https://dataverse.harvard.edu/dataset.xhtml?persistentId=" + DOI
+UA = {"User-Agent": "Mozilla/5.0 (compatible; india-tracker/1.0)", "Accept": "*/*"}
 
 GROUPS = [
     ("Poverty and basic services", r"poverty|basic services|electricity"),
@@ -64,13 +65,15 @@ def num(v):
 
 
 def download(path):
-    meta = json.load(urllib.request.urlopen(API + "/datasets/:persistentId/?persistentId=" + DOI, timeout=60))
+    # Dataverse refuses Python's default user agent (403), so name the client.
+    req = urllib.request.Request(API + "/datasets/:persistentId/?persistentId=" + DOI, headers=UA)
+    meta = json.load(urllib.request.urlopen(req, timeout=60))
     files = meta["data"]["latestVersion"]["files"]
     f = next(x for x in files if x["dataFile"]["filename"].lower().endswith(".xlsx"))
     version = "%s.%s" % (meta["data"]["latestVersion"].get("versionNumber"), meta["data"]["latestVersion"].get("versionMinorNumber"))
     url = API + "/access/datafile/%s" % f["dataFile"]["id"]
     print("downloading", f["dataFile"]["filename"], f["dataFile"].get("filesize"), "bytes", flush=True)
-    req = urllib.request.Request(url, headers={"User-Agent": "india-tracker/1.0"})
+    req = urllib.request.Request(url, headers=UA)
     with urllib.request.urlopen(req, timeout=600) as r, open(path, "wb") as fh:
         while True:
             chunk = r.read(1 << 20)

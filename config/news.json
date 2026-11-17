@@ -268,16 +268,18 @@
       "name": "Financial Express",
       "type": "News outlet",
       "url": "https://www.financialexpress.com/economy/feed/",
-      "enabled": true,
-      "section": "Economy"
+      "enabled": false,
+      "section": "Economy",
+      "_note": "Disabled: the site refuses automated feed requests (HTTP 403)."
     },
     {
       "id": "ie-business",
       "name": "The Indian Express",
       "type": "News outlet",
       "url": "https://indianexpress.com/section/business/feed/",
-      "enabled": true,
-      "section": "Business"
+      "enabled": false,
+      "section": "Business",
+      "_note": "Disabled: the site refuses automated feed requests (HTTP 403)."
     },
     {
       "id": "mc-economy",
@@ -884,7 +886,19 @@
       "fuel price today",
       "weather",
       "lottery",
-      "recipe"
+      "recipe",
+      "stock market",
+      "stock markets",
+      "markets climb",
+      "markets fall",
+      "early trade",
+      "sensex, nifty",
+      "rupee rises",
+      "rupee falls",
+      "rupee opens",
+      "rupee closes",
+      "market outlook",
+      "trade setup"
     ]
   }
 }
