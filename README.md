@@ -4,7 +4,7 @@ A static site that brings together Indian macro, state and sector data with a da
 
 ## Sections
 
-Human development (35 SDG indicators by state, district and village), Dashboard (the landing page: headline macro figures, the latest daily picks, recent macro developments and a card per section; the site title returns here), Daily updates, India macro, States, Semiconductors, Electronics, Logistics, Textiles, Pharma, Energy, Finance, and Sources.
+Dashboard (the landing page: headline macro figures, the latest daily picks, recent macro developments and a card per section; the site title returns here), Daily updates, India macro, States, Human development (35 SDG indicators by state, district and village), Semiconductors, Electronics, Logistics, Textiles, Auto, Chemicals, Pharma, Energy, Finance, and Sources. Sector pages open with headline figures, and every chart can be copied or downloaded as a PNG with its title, legend and source.
 
 Daily updates shows the articles hand-picked for the day, with a calendar for past days and a search across every title. It is filled from the running updates document (see `picks/README.md`).
 
@@ -53,4 +53,5 @@ python3 -m http.server 8765 --directory site
 - Finance has no bank credit, deposit or interest rate series yet. RBI publishes these on its own database (DBIE), which the pipeline does not read.
 - ASI returns no data for power plants (NIC 35), so Energy has refinery (NIC 19) factory data only.
 - IMF and OPEC block automated access to their news feeds.
+- Auto has no vehicle sales or registrations yet (SIAM, VAHAN), and MoSPI's RBI trade series has transport equipment imports only.
 - Energy has no physical volumes yet (crude and gas output, refinery throughput, power generation, capacity). PPAC and CEA publish these outside MoSPI.

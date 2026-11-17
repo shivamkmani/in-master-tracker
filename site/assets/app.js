@@ -76,6 +76,47 @@ const PAGES = {
       ["Exports", { ds: ["rbi_commodity"], ind: /Exports/, freq: "Annual" }],
     ],
   },
+  auto: {
+    label: "Auto", news: "auto",
+    lede: "Vehicles and components: production and price indices, trade, household transport costs, and factory data by state, with industry and policy developments.",
+    caveat: "Factory data is ASI NIC 29 (motor vehicles, trailers and parts) and NIC 30 (other transport equipment; NIC 309 includes motorcycles and bicycles) for registered factories, 2014-15 to 2023-24; it appears after the next full ASI run. Vehicle sales and registrations (SIAM, VAHAN) aren't included yet. Trade covers imports of all transport equipment, national and annual; MoSPI's copy of the RBI series has no matching export line.",
+    tiles: [
+      ["Vehicle output growth", (r) => r.ds === "iip" && /growth/.test(r.ind) && /Motor Vehicles/i.test(r.seg), "%", "Production index"],
+      ["Vehicle wholesale prices", (r) => r.ds === "wpi" && r.seg === "Manufacture of Motor Vehicles", "", "Wholesale prices"],
+      ["Transport equipment imports", (r) => r.ds === "rbi_commodity" && r.ind === "Imports", "usd_m", "Imports"],
+      ["Transport inflation", (r) => r.ds === "cpi" && /inflation/.test(r.ind), "%", "Transport inflation"],
+    ],
+    presets: [
+      ["Production index", { ds: ["iip"], ind: /IIP growth/, freq: "Monthly" }],
+      ["Wholesale prices", { ds: ["wpi"], seg: /Motor Vehicles$|Motorcycles|Parts and Accessories|Tyres/, freq: "Monthly" }],
+      ["Imports", { ds: ["rbi_commodity"], freq: "Annual" }],
+      ["Transport inflation", { ds: ["cpi"], ind: /CPI inflation/, freq: "Monthly" }],
+      ["Vehicles GVA by state", { ds: ["asi"], ind: /^Gross Value Added$/, seg: /^NIC 29:/, freq: "Annual" }],
+      ["Vehicles jobs by state", { ds: ["asi"], ind: /Persons Engaged/, seg: /^NIC 29:/, freq: "Annual" }],
+      ["Two-wheelers and other (NIC 309)", { ds: ["asi"], ind: /^Gross Value Added$/, seg: /^NIC 309:/, freq: "Annual" }],
+      ["Components vs vehicles", { ds: ["asi"], ind: /^Gross Value Added$/, seg: /^NIC 29\d:/, freq: "Annual" }],
+    ],
+  },
+  chemicals: {
+    label: "Chemicals", news: "chemicals",
+    lede: "Basic chemicals, fertilisers, agrochemicals, polymers and specialty chemicals: production, prices, trade and factory data by state.",
+    caveat: "Factory data is ASI NIC 20 (chemicals and chemical products, excluding pharmaceuticals) with its groups 201 basic chemicals and fertilisers, 202 other chemical products and 203 man-made fibres; it appears after the next full ASI run. The production index groups chemicals with rubber and plastics as separate series. Trade is national and annual.",
+    tiles: [
+      ["Chemicals output growth", (r) => r.ds === "iip" && /growth/.test(r.ind) && /^Manufacture of Chemicals/i.test(r.seg), "%", "Production index"],
+      ["Chemicals wholesale prices", (r) => r.ds === "wpi" && r.seg === "Manufacture of Chemicals and Chemical Products", "", "Wholesale prices"],
+      ["Organic and inorganic exports", (r) => r.ds === "rbi_commodity" && r.ind === "Exports" && /^Organic/.test(r.seg), "usd_m", "Exports and imports"],
+      ["Fertiliser imports", (r) => r.ds === "rbi_commodity" && r.ind === "Imports" && /^Fertilisers/.test(r.seg), "usd_m", "Fertiliser trade"],
+    ],
+    presets: [
+      ["Production index", { ds: ["iip"], ind: /IIP growth/, freq: "Monthly" }],
+      ["Wholesale prices", { ds: ["wpi"], freq: "Monthly" }],
+      ["Exports and imports", { ds: ["rbi_commodity"], freq: "Annual" }],
+      ["Fertiliser trade", { ds: ["rbi_commodity"], seg: /^Fertilisers/, freq: "Annual" }],
+      ["GVA by state", { ds: ["asi"], ind: /^Gross Value Added$/, seg: /^NIC 20:/, freq: "Annual" }],
+      ["Jobs by state", { ds: ["asi"], ind: /Persons Engaged/, seg: /^NIC 20:/, freq: "Annual" }],
+      ["Product mix", { ds: ["asi"], ind: /^Gross Value Added$/, seg: /^NIC 20\d:/, freq: "Annual" }],
+    ],
+  },
   pharma: {
     label: "Pharma", news: "pharma",
     lede: "Production, prices, trade and factory data for pharmaceuticals, with regulatory and industry developments in India and abroad.",
@@ -87,6 +128,16 @@ const PAGES = {
       ["Health CPI inflation", { ds: ["cpi"], ind: /CPI inflation/, freq: "Monthly" }],
       ["GVA by state", { ds: ["asi"], ind: /^Gross Value Added$/, seg: /^NIC 21:/, freq: "Annual" }],
       ["Jobs by state", { ds: ["asi"], ind: /Persons Engaged/, seg: /^NIC 21:/, freq: "Annual" }],
+      ["Output by state", { ds: ["asi"], ind: /^Total Output$/, seg: /^NIC 21:/, freq: "Annual" }],
+      ["Factories by state", { ds: ["asi"], ind: /^Number of Factories$/, seg: /^NIC 21:/, freq: "Annual" }],
+      ["Investment by state", { ds: ["asi"], ind: /^Gross Fixed Capital Formation$/, seg: /^NIC 21:/, freq: "Annual" }],
+      ["Profit by state", { ds: ["asi"], ind: /^Net Profit$/, seg: /^NIC 21:/, freq: "Annual" }],
+    ],
+    tiles: [
+      ["Pharma output growth", (r) => r.ds === "iip" && /growth/.test(r.ind), "%", "Production index"],
+      ["Pharma wholesale prices", (r) => r.ds === "wpi" && /^Manufacture of Pharmaceuticals, Medicinal/.test(r.seg), "", "Wholesale prices"],
+      ["Drug exports", (r) => r.ds === "rbi_commodity" && r.ind === "Exports", "usd_m", "Exports and imports"],
+      ["Health inflation", (r) => r.ds === "cpi" && /inflation/.test(r.ind), "%", "Health CPI inflation"],
     ],
   },
   energy: {
@@ -102,6 +153,16 @@ const PAGES = {
       ["Mining GVA by state", { ds: ["gsva"], ind: /constant/, seg: /^Mining/, freq: "Annual" }],
       ["Household fuel inflation", { ds: ["cpi"], ind: /CPI inflation/, freq: "Monthly" }],
       ["Refining GVA by state", { ds: ["asi"], ind: /^Gross Value Added$/, seg: /^NIC 19:/, freq: "Annual" }],
+      ["Refining output by state", { ds: ["asi"], ind: /^Total Output$/, seg: /^NIC 19:/, freq: "Annual" }],
+      ["Refining jobs by state", { ds: ["asi"], ind: /Persons Engaged/, seg: /^NIC 19:/, freq: "Annual" }],
+      ["Mining and fuel minerals", { ds: ["iip"], ind: /IIP growth/, seg: /^(Mining & Quarrying|Fuel Minerals)$/, freq: "Monthly" }],
+      ["Coal prices", { ds: ["wpi"], seg: /Coal/, freq: "Monthly" }],
+    ],
+    tiles: [
+      ["Power output growth", (r) => r.ds === "iip" && /growth/.test(r.ind) && r.seg === "Electricity", "%", "Power output growth"],
+      ["Fuel and power prices", (r) => r.ds === "wpi" && r.seg === "Fuel & Power", "", "Fuel and power prices"],
+      ["Petroleum imports", (r) => r.ds === "rbi_commodity" && r.ind === "Imports" && /^Petroleum, Crude/.test(r.seg), "usd_m", "Oil and coal trade"],
+      ["Household fuel inflation", (r) => r.ds === "cpi" && /inflation/.test(r.ind), "%", "Household fuel inflation"],
     ],
   },
   finance: {
@@ -400,7 +461,78 @@ function chart(periods, rows, f) {
   });
   svg.addEventListener("pointerleave", () => { tip.hidden = true; hair.setAttribute("visibility", "hidden"); });
   wrap.append(legend, svg, tip);
+  wrap._chart = { svg, series, W, H };
   return wrap;
+}
+
+/* ---------- chart to PNG: copy to clipboard or download ---------- */
+/* Draws the chart with its title, legend and source line on a canvas, so a
+   pasted chart carries its own context. CSS variables are resolved to the
+   current theme's colours, since a standalone image can't read them. */
+function chartTitle(rows) {
+  const one = (k) => { const u = uniq(rows.map((r) => r[k])); return u.length === 1 ? u[0] : null; };
+  const parts = [one("ind") || uniq(rows.map((r) => r.ind)).slice(0, 2).join(", "), one("seg"), one("geo")].filter(Boolean);
+  return uniq(parts).join(" · ") + (rows[0] && rows[0].unit ? " (" + rows[0].unit + ")" : "");
+}
+async function chartPng(wrap, title, cite) {
+  const { svg, series, W, H } = wrap._chart;
+  const css = getComputedStyle(document.documentElement);
+  const resolve = (v) => v && v.startsWith("var(") ? css.getPropertyValue(v.slice(4, -1)).trim() : v;
+  const clone = svg.cloneNode(true);
+  clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+  clone.setAttribute("width", W); clone.setAttribute("height", H);
+  clone.setAttribute("font-family", "Helvetica, Arial, sans-serif");
+  clone.querySelectorAll("[visibility=hidden]").forEach((n) => n.remove());
+  clone.querySelectorAll("*").forEach((n) => { for (const a of ["stroke", "fill"]) if (n.hasAttribute(a)) n.setAttribute(a, resolve(n.getAttribute(a))); });
+  const img = new Image();
+  img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(new XMLSerializer().serializeToString(clone));
+  await img.decode();
+
+  const S = 2, PAD = 28, FW = W + PAD * 2;
+  const font = (w, px) => w + " " + px + "px 'Nunito Sans', Helvetica, Arial, sans-serif";
+  const ctx0 = document.createElement("canvas").getContext("2d");
+  const wrapText = (text, f, max) => {
+    ctx0.font = f; const out = []; let line = "";
+    for (const w of text.split(" ")) { const t = line ? line + " " + w : w; if (ctx0.measureText(t).width > max && line) { out.push(line); line = w; } else line = t; }
+    if (line) out.push(line); return out;
+  };
+  const titleLines = wrapText(title, font(700, 18), W);
+  // Legend items flow left to right, wrapping as needed.
+  ctx0.font = font(400, 12);
+  const legendRows = [[]]; let x = 0;
+  if (series.length > 1) for (const q of series) {
+    const w = 22 + ctx0.measureText(q.name).width + 18;
+    if (x + w > W && legendRows[legendRows.length - 1].length) { legendRows.push([]); x = 0; }
+    legendRows[legendRows.length - 1].push({ q, x }); x += w;
+  }
+  const citeLines = wrapText(cite + " Chart: India Master Tracker.", font(400, 11), W);
+  const legendH = series.length > 1 ? legendRows.length * 20 + 6 : 0;
+  const FH = PAD + titleLines.length * 24 + 8 + legendH + H + 10 + citeLines.length * 15 + PAD;
+  const c = document.createElement("canvas");
+  c.width = FW * S; c.height = FH * S;
+  const ctx = c.getContext("2d");
+  ctx.scale(S, S);
+  ctx.fillStyle = resolve("var(--surface)") || "#fff"; ctx.fillRect(0, 0, FW, FH);
+  let y = PAD;
+  ctx.fillStyle = resolve("var(--ink)"); ctx.font = font(700, 18); ctx.textBaseline = "top";
+  for (const l of titleLines) { ctx.fillText(l, PAD, y); y += 24; }
+  y += 8;
+  ctx.font = font(400, 12);
+  for (const row of series.length > 1 ? legendRows : []) {
+    for (const { q, x: lx } of row) {
+      ctx.fillStyle = resolve(q.color); ctx.fillRect(PAD + lx, y + 6, 14, 3);
+      ctx.fillStyle = resolve("var(--ink2)"); ctx.fillText(q.name, PAD + lx + 22, y);
+    }
+    y += 20;
+  }
+  if (legendH) y += 6;
+  ctx.drawImage(img, PAD, y, W, H); y += H + 10;
+  ctx.fillStyle = resolve("var(--ink3)"); ctx.font = font(400, 11);
+  for (const l of citeLines) { ctx.fillText(l, PAD, y); y += 15; }
+  return new Promise((res) => c.toBlob(res, "image/png"));
+}
+function chartButtons(wrap, rows) {
+  return chartButtonsFor(wrap, chartTitle(rows), citation(rows));
 }
 
 /* ---------- table builder ---------- */
@@ -450,7 +582,7 @@ function renderBuilder() {
   const src = el("button", { type: "button", onclick: (e) => copy(cite, e.target) }, "Copy source line");
   host.append(el("div", { class: "tfoot" },
     el("span", { class: "muted" }, rows.length > MAX_ROWS ? "Showing " + MAX_ROWS + " of " + rows.length + " rows. Exports include all." : rows.length + (rows.length === 1 ? " row" : " rows")),
-    el("div", { class: "actions" }, csv, xl, src, link)));
+    el("div", { class: "actions" }, c && c._chart ? chartButtons(c, rows) : null, csv, xl, src, link)));
   host.append(el("p", { class: "cite" }, cite));
   const notes = uniq(rows.map((r) => r.ds)).map((d) => (G.meta.datasets[d] || {}).note).filter(Boolean);
   if (notes.length) host.append(el("p", { class: "cite" }, "Notes: " + notes.join(" ")));
@@ -551,17 +683,24 @@ function spark(vals) {
   return svg;
 }
 
-function tiles(rows, linked) {
+function tiles(rows, linked, defs, page) {
   const out = [];
-  for (const [label, test, suffix, preset] of TILE_DEFS) {
+  for (const [label, test, suffix, preset] of defs || TILE_DEFS) {
     const series = rows.filter((r) => r.geo === "All India" && test(r)).sort((a, b) => a.p < b.p ? -1 : 1);
     const r = series[series.length - 1];
     if (!r) continue;
     const big = suffix === "usd_m" ? (r.v < 0 ? "−" : "") + "$" + fmt(Math.round(Math.abs(r.v) / 100) / 10) + " bn" : fmt(r.v) + suffix;
+    const sp = page ? spark(series.slice(-12).map((x) => x.v)) : null;
     const kids = [el("b", null, big), el("span", null, label),
-      linked ? spark(series.slice(-12).map((x) => x.v)) : null,
+      linked ? spark(series.slice(-12).map((x) => x.v)) : sp,
       el("small", null, periodLabel(r.p, r.f) + " · " + (G.meta.datasets[r.ds] || {}).publisher)];
-    out.push(linked
+    if (page) {
+      // On a sector page a tile opens the matching table in the builder below.
+      const p = PAGES[page].presets.find(([n]) => n === preset);
+      out.push(p ? el("a", { class: "tile", href: "#/" + page, title: "Show in the table builder", onclick: (e) => {
+        e.preventDefault(); V.preset = p[0]; applyPreset(p[1]); renderBuilder(); V.builder.scrollIntoView({ behavior: "smooth", block: "start" });
+      } }, kids) : el("div", { class: "tile" }, kids));
+    } else out.push(linked
       ? el("a", { class: "tile", href: "#/macro", title: "Open India macro", onclick: () => { if (preset) G.pendingPreset = preset; } }, kids)
       : el("div", { class: "tile" }, kids));
   }
@@ -672,7 +811,7 @@ async function showData(page, q) {
   app.replaceChildren(...[
     el("h1", null, P.label), el("p", { class: "lede" }, P.lede),
     P.caveat ? el("p", { class: "caveat" }, P.caveat) : null,
-    page === "macro" ? tiles(rows, false) : null,
+    page === "macro" ? tiles(rows, false) : P.tiles ? tiles(rows, false, P.tiles, page) : null,
     el("div", { class: "focus" }, el("label", { htmlFor: "focus" }, "Focus state"), focusSel),
     el("div", { class: "grid" }, V.builder, V.newsHost),
   ].filter(Boolean));
@@ -1109,72 +1248,6 @@ function editorSignIn(app) {
   tok.focus();
 }
 
-/* ---------- chart to PNG: copy to clipboard or download ---------- */
-/* Draws the chart with its title, legend and source line on a canvas, so a
-   pasted chart carries its own context. CSS variables are resolved to the
-   current theme's colours, since a standalone image can't read them. */
-function chartTitle(rows) {
-  const one = (k) => { const u = uniq(rows.map((r) => r[k])); return u.length === 1 ? u[0] : null; };
-  const parts = [one("ind") || uniq(rows.map((r) => r.ind)).slice(0, 2).join(", "), one("seg"), one("geo")].filter(Boolean);
-  return uniq(parts).join(" · ") + (rows[0] && rows[0].unit ? " (" + rows[0].unit + ")" : "");
-}
-async function chartPng(wrap, title, cite) {
-  const { svg, series, W, H } = wrap._chart;
-  const css = getComputedStyle(document.documentElement);
-  const resolve = (v) => v && v.startsWith("var(") ? css.getPropertyValue(v.slice(4, -1)).trim() : v;
-  const clone = svg.cloneNode(true);
-  clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
-  clone.setAttribute("width", W); clone.setAttribute("height", H);
-  clone.setAttribute("font-family", "Helvetica, Arial, sans-serif");
-  clone.querySelectorAll("[visibility=hidden]").forEach((n) => n.remove());
-  clone.querySelectorAll("*").forEach((n) => { for (const a of ["stroke", "fill"]) if (n.hasAttribute(a)) n.setAttribute(a, resolve(n.getAttribute(a))); });
-  const img = new Image();
-  img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(new XMLSerializer().serializeToString(clone));
-  await img.decode();
-
-  const S = 2, PAD = 28, FW = W + PAD * 2;
-  const font = (w, px) => w + " " + px + "px 'Nunito Sans', Helvetica, Arial, sans-serif";
-  const ctx0 = document.createElement("canvas").getContext("2d");
-  const wrapText = (text, f, max) => {
-    ctx0.font = f; const out = []; let line = "";
-    for (const w of text.split(" ")) { const t = line ? line + " " + w : w; if (ctx0.measureText(t).width > max && line) { out.push(line); line = w; } else line = t; }
-    if (line) out.push(line); return out;
-  };
-  const titleLines = wrapText(title, font(700, 18), W);
-  // Legend items flow left to right, wrapping as needed.
-  ctx0.font = font(400, 12);
-  const legendRows = [[]]; let x = 0;
-  if (series.length > 1) for (const q of series) {
-    const w = 22 + ctx0.measureText(q.name).width + 18;
-    if (x + w > W && legendRows[legendRows.length - 1].length) { legendRows.push([]); x = 0; }
-    legendRows[legendRows.length - 1].push({ q, x }); x += w;
-  }
-  const citeLines = wrapText(cite + " Chart: India Master Tracker.", font(400, 11), W);
-  const legendH = series.length > 1 ? legendRows.length * 20 + 6 : 0;
-  const FH = PAD + titleLines.length * 24 + 8 + legendH + H + 10 + citeLines.length * 15 + PAD;
-  const c = document.createElement("canvas");
-  c.width = FW * S; c.height = FH * S;
-  const ctx = c.getContext("2d");
-  ctx.scale(S, S);
-  ctx.fillStyle = resolve("var(--surface)") || "#fff"; ctx.fillRect(0, 0, FW, FH);
-  let y = PAD;
-  ctx.fillStyle = resolve("var(--ink)"); ctx.font = font(700, 18); ctx.textBaseline = "top";
-  for (const l of titleLines) { ctx.fillText(l, PAD, y); y += 24; }
-  y += 8;
-  ctx.font = font(400, 12);
-  for (const row of series.length > 1 ? legendRows : []) {
-    for (const { q, x: lx } of row) {
-      ctx.fillStyle = resolve(q.color); ctx.fillRect(PAD + lx, y + 6, 14, 3);
-      ctx.fillStyle = resolve("var(--ink2)"); ctx.fillText(q.name, PAD + lx + 22, y);
-    }
-    y += 20;
-  }
-  if (legendH) y += 6;
-  ctx.drawImage(img, PAD, y, W, H); y += H + 10;
-  ctx.fillStyle = resolve("var(--ink3)"); ctx.font = font(400, 11);
-  for (const l of citeLines) { ctx.fillText(l, PAD, y); y += 15; }
-  return new Promise((res) => c.toBlob(res, "image/png"));
-}
 /* Copy / Download buttons for any chart element carrying wrap._chart. */
 function chartButtonsFor(wrap, title, cite, name) {
   name = name || "india-tracker-" + V.page + "-chart.png";
@@ -1185,10 +1258,13 @@ function chartButtonsFor(wrap, title, cite, name) {
   const copyBtn = el("button", { type: "button" }, "Copy chart");
   copyBtn.addEventListener("click", async () => {
     const old = copyBtn.textContent;
+    copyBtn.textContent = "Copying…";
     const blob = chartPng(wrap, title, cite);  // a promise, so Safari keeps the click's permission
     try {
       if (!window.ClipboardItem || !navigator.clipboard || !navigator.clipboard.write) throw new Error("unsupported");
-      await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+      // Some browsers can leave the write pending; don't let the button hang.
+      await Promise.race([navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]),
+        new Promise((_, no) => setTimeout(() => no(new Error("timed out")), 4000))]);
       copyBtn.textContent = "Copied";
     } catch (e) {
       save(await blob);

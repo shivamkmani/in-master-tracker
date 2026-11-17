@@ -56,18 +56,25 @@ ASI_SECTORS = {
     "textiles": ["13", "131", "139", "14", "141", "142", "143", "15", "151", "152"],
     "pharma": ["21", "210"],
     "energy": ["19", "191", "192"],  # ASI returns nothing for NIC 35 (electricity)
+    "auto": ["29", "291", "292", "293", "30", "309"],
+    "chemicals": ["20", "201", "202", "203"],
 }
 IIP_RX = {
     "electronics": re.compile(r"computer, electronic|electrical equipment", re.I),
     "semiconductors": re.compile(r"computer, electronic", re.I),
     "textiles": re.compile(r"textiles|wearing apparel|leather", re.I),
     "pharma": re.compile(r"pharmaceutical", re.I),
+    "auto": re.compile(r"motor vehicles|other transport equipment", re.I),
+    "chemicals": re.compile(r"chemicals and chemical products|rubber and plastics", re.I),
 }
 WPI_RX = {
     "electronics": re.compile(r"computer, electronic|electrical equipment", re.I),
     "semiconductors": re.compile(r"computer, electronic", re.I),
     "textiles": re.compile(r"textiles|wearing apparel|leather", re.I),
     "pharma": re.compile(r"pharmaceutical", re.I),
+    "auto": re.compile(r"motor vehicles|motorcycles|other transport equipment|rubber tyres", re.I),
+    "chemicals": re.compile(r"basic chemicals|chemicals and chemical products|other chemical products|fertilizers|"
+                            r"pesticides|plastics and synthetic rubber in primary forms", re.I),
 }
 ISP_LOGISTICS = re.compile(r"rail|road|water transport|air transport|warehousing|postal|courier", re.I)
 GSVA_LOGISTICS = re.compile(r"transport|storage|railway", re.I)
@@ -86,7 +93,10 @@ COMMODITY_RX = {
     "semiconductors": re.compile(r"electronic", re.I),
     "textiles": re.compile(r"cotton|textile|garment|jute|carpet|handicraft|leather|man-?made|silk|yarn", re.I),
     "pharma": re.compile(r"pharma", re.I),
+    "auto": re.compile(r"^transport equipment", re.I),
+    "chemicals": re.compile(r"chemical|dyeing|fertilisers|artificial resins|plastic", re.I),
 }
+CPI_TRANSPORT = re.compile(r"^transport$", re.I)
 
 
 def num(value):
@@ -412,7 +422,7 @@ def main():
             print("FAILED ASI: %s" % exc)
 
     prior = {n: previous(n) for n in ("macro", "states", "semiconductors", "electronics", "logistics", "textiles", "pharma",
-                                      "energy")}
+                                      "energy", "auto", "chemicals")}
 
     def get(part, file, ds):
         """Fresh rows if this run got them, else last good rows for that dataset.
@@ -438,12 +448,13 @@ def main():
           + get("rbi_fx", "macro", "rbi_fx") + commodity, status)
     write("states", "States", get("gsdp", "states", "gsdp") + get("gsva", "states", "gsva") + state_cpi
           + [r for r in plfs if r[1] != INDIA], status)
+    sector_cpi = {"pharma": CPI_HEALTH, "auto": CPI_TRANSPORT}
     for sector, title in (("semiconductors", "Semiconductors"), ("electronics", "Electronics"), ("textiles", "Textiles"),
-                          ("pharma", "Pharmaceuticals")):
+                          ("pharma", "Pharmaceuticals"), ("auto", "Automobiles"), ("chemicals", "Chemicals")):
         write(sector, title,
               get("asi_" + sector, sector, "asi") + sel(iip, IIP_RX[sector]) + sel(wpi, WPI_RX[sector])
               + sel(commodity, COMMODITY_RX[sector])
-              + (sel(india_cpi + state_cpi, CPI_HEALTH) if sector == "pharma" else []), status)
+              + (sel(india_cpi + state_cpi, sector_cpi[sector]) if sector in sector_cpi else []), status)
     write("logistics", "Logistics", sel(isp, ISP_LOGISTICS) + get("gsva_logistics", "logistics", "gsva"), status)
     write("finance", "Financial sector",
           [r for r in get("nas", "macro", "nas") if NAS_FINANCE.search(r[2])]
