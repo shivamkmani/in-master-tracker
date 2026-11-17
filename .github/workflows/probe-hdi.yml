@@ -1,0 +1,39 @@
+name: Probe Harvard SDG dataset (temporary)
+on:
+  push:
+    branches: [probe-hdi]
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: List files and peek at each table
+        run: |
+          set +e
+          API=https://dataverse.harvard.edu/api
+          DOI=doi:10.7910/DVN/GO8W1W
+          echo "== dataset metadata"
+          curl -sSL "$API/datasets/:persistentId/?persistentId=$DOI" -o meta.json
+          python3 - <<'PY'
+          import json
+          d = json.load(open("meta.json"))["data"]["latestVersion"]
+          print("version", d.get("versionNumber"), d.get("versionMinorNumber"), "| licence:", (d.get("license") or {}).get("name"), (d.get("license") or {}).get("uri"), "| terms:", (d.get("termsOfUse") or "")[:300])
+          for b in d["metadataBlocks"]["citation"]["fields"]:
+              if b["typeName"] in ("title", "dsDescription", "author", "distributionDate", "productionDate"):
+                  print(b["typeName"], ":", json.dumps(b["value"])[:900])
+          rows = []
+          for f in d["files"]:
+              df = f["dataFile"]
+              rows.append((df["id"], df.get("filename"), df.get("filesize"), df.get("contentType"), f.get("directoryLabel", ""), (f.get("description") or "")[:120]))
+          for r in rows: print("FILE", *r, sep=" | ")
+          open("ids.txt", "w").write("\n".join("%s\t%s\t%s" % (r[0], r[1], r[2]) for r in rows))
+          PY
+          echo "== first lines of each file under 400 MB (range request, 64 KB max)"
+          while IFS=$'\t' read -r id name size; do
+            echo "----- $name ($size bytes)"
+            case "$name" in
+              *.zip) curl -sSL -r 0-0 -o /dev/null -w "zip reachable: %{http_code}\n" "$API/access/datafile/$id";;
+              *.pdf|*.docx) echo "(document, skipped)";;
+              *) curl -sSL -r 0-65535 "$API/access/datafile/$id?format=original" | head -c 4000 | head -n 6; echo;;
+            esac
+          done < ids.txt
