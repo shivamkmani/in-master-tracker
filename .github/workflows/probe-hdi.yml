@@ -5,35 +5,45 @@ on:
 jobs:
   probe:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 40
     steps:
-      - name: List files and peek at each table
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Description and indicator names from the authors' code
         run: |
-          set +e
           API=https://dataverse.harvard.edu/api
-          DOI=doi:10.7910/DVN/GO8W1W
-          echo "== dataset metadata"
-          curl -sSL "$API/datasets/:persistentId/?persistentId=$DOI" -o meta.json
+          curl -sSL "$API/datasets/:persistentId/?persistentId=doi:10.7910/DVN/GO8W1W" -o meta.json
+          python3 -c "
+          import json,re,html
+          d=json.load(open('meta.json'))['data']['latestVersion']
+          for b in d['metadataBlocks']['citation']['fields']:
+              if b['typeName']=='dsDescription':
+                  t=b['value'][0]['dsDescriptionValue']['value']
+                  print(re.sub(r'\s+',' ',html.unescape(re.sub(r'<[^>]+>',' ',t)))[:6000])
+          "
+          curl -sSL "$API/access/datafile/14197563" -o app.py
+          echo "== lines in app.py mentioning sheets, columns or indicators"
+          grep -n -i -E "sheet|read_excel|columns|indicator|label|_id|code|name" app.py | head -150
+      - name: Download the workbook on the runner and describe it
+        run: |
+          pip -q install openpyxl
+          curl -sSL "https://dataverse.harvard.edu/api/access/datafile/14140045" -o sdg.xlsx
+          ls -la sdg.xlsx
           python3 - <<'PY'
-          import json
-          d = json.load(open("meta.json"))["data"]["latestVersion"]
-          print("version", d.get("versionNumber"), d.get("versionMinorNumber"), "| licence:", (d.get("license") or {}).get("name"), (d.get("license") or {}).get("uri"), "| terms:", (d.get("termsOfUse") or "")[:300])
-          for b in d["metadataBlocks"]["citation"]["fields"]:
-              if b["typeName"] in ("title", "dsDescription", "author", "distributionDate", "productionDate"):
-                  print(b["typeName"], ":", json.dumps(b["value"])[:900])
-          rows = []
-          for f in d["files"]:
-              df = f["dataFile"]
-              rows.append((df["id"], df.get("filename"), df.get("filesize"), df.get("contentType"), f.get("directoryLabel", ""), (f.get("description") or "")[:120]))
-          for r in rows: print("FILE", *r, sep=" | ")
-          open("ids.txt", "w").write("\n".join("%s\t%s\t%s" % (r[0], r[1], r[2]) for r in rows))
+          import openpyxl, time
+          t = time.time()
+          wb = openpyxl.load_workbook("sdg.xlsx", read_only=True, data_only=True)
+          print("sheets:", wb.sheetnames, "%.0fs" % (time.time() - t))
+          for ws in wb.worksheets:
+              print("=====", ws.title, "dims:", ws.calculate_dimension() if hasattr(ws, "calculate_dimension") else "")
+              n = 0
+              for row in ws.iter_rows(values_only=True):
+                  if n < 4:
+                      print("ROW", n, [str(v)[:40] if v is not None else "" for v in row][:60])
+                  n += 1
+                  if ws.title.lower().startswith("vil") and n > 2000:
+                      print("(village sheet: stopped counting at 2000)")
+                      break
+              print("rows counted:", n, "%.0fs" % (time.time() - t))
           PY
-          echo "== first lines of each file under 400 MB (range request, 64 KB max)"
-          while IFS=$'\t' read -r id name size; do
-            echo "----- $name ($size bytes)"
-            case "$name" in
-              *.zip) curl -sSL -r 0-0 -o /dev/null -w "zip reachable: %{http_code}\n" "$API/access/datafile/$id";;
-              *.pdf|*.docx) echo "(document, skipped)";;
-              *) curl -sSL -r 0-65535 "$API/access/datafile/$id?format=original" | head -c 4000 | head -n 6; echo;;
-            esac
-          done < ids.txt
