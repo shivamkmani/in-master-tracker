@@ -7,43 +7,20 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - name: Inspect CCS listing pages and the latest releases
+      - name: Dump links on the CCS listing page, then open the newest release
         run: |
           UA="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126 Safari/537.36"
-          for head in "Urban%20Consumer%20Confidence%20Survey%20-%20Bi-monthly" "Rural%20Consumer%20Confidence%20Survey%20-%20Bi-monthly"; do
-            echo "=================== $head"
-            curl -sSL -A "$UA" "https://www.rbi.org.in/Scripts/BimonthlyPublications.aspx?head=$head" -o list.html -w "list HTTP %{http_code} %{size_download}\n"
-            python3 - <<'PY'
+          curl -sSL -A "$UA" "https://www.rbi.org.in/Scripts/BimonthlyPublications.aspx?head=Urban%20Consumer%20Confidence%20Survey%20-%20Bi-monthly" -o list.html
+          python3 - <<'PY'
           import re, html
           t = open("list.html", encoding="utf8", errors="ignore").read()
-          links = re.findall(r'href="([^"]*(?:PublicationsView|BimonthlyPublications)[^"]*Id=\d+[^"]*)"[^>]*>\s*([^<]{0,160})', t, re.I)
-          seen = []
-          for h, x in links:
-              if h not in [s[0] for s in seen]: seen.append((h, re.sub(r"\s+", " ", html.unescape(x)).strip()))
-          print("release links:", len(seen))
-          for h, x in seen[:12]: print("  ", x[:110], "|", h)
-          xl = re.findall(r'href="([^"]+\.(?:xlsx?|pdf|zip))"', t, re.I)
-          print("attachments on list page:", len(xl)); [print("  ", u) for u in xl[:12]]
-          open("first.txt", "w").write(seen[0][0] if seen else "")
+          i = t.lower().find("consumer confidence survey")
+          print("first mention at", i)
+          body = t[max(0, i - 500): i + 6000]
+          print(re.sub(r"\s+", " ", body)[:5000])
+          print("== all anchors with text mentioning survey/round/month")
+          for h, x in re.findall(r'<a[^>]+href="([^"]+)"[^>]*>(.*?)</a>', t, re.S | re.I):
+              x = re.sub(r"\s+", " ", html.unescape(re.sub(r"<[^>]+>", " ", x))).strip()
+              if re.search(r"survey|round|20\d\d|january|march|may|july|september|november", x, re.I) or re.search(r"Id=|id=|\.pdf|\.xls", h):
+                  print("  ", x[:90], "|", h[:160])
           PY
-            FIRST=$(cat first.txt)
-            [ -z "$FIRST" ] && continue
-            case "$FIRST" in http*) U="$FIRST";; /*) U="https://www.rbi.org.in$FIRST";; *) U="https://www.rbi.org.in/Scripts/$FIRST";; esac
-            echo "--- latest release page: $U"
-            curl -sSL -A "$UA" "$U" -o rel.html -w "release HTTP %{http_code} %{size_download}\n"
-            python3 - <<'PY'
-          import re, html
-          t = open("rel.html", encoding="utf8", errors="ignore").read()
-          print("title:", re.sub(r"\s+", " ", html.unescape(re.search(r"<title>(.*?)</title>", t, re.S).group(1))).strip()[:150] if "<title>" in t else "")
-          xl = re.findall(r'href="([^"]+\.(?:xlsx?|pdf|zip))"', t, re.I)
-          print("attachments:", len(xl)); [print("  ", u) for u in xl[:15]]
-          tables = re.findall(r"<table.*?</table>", t, re.S | re.I)
-          print("html tables:", len(tables))
-          def cells(row): return [re.sub(r"\s+", " ", html.unescape(re.sub(r"<[^>]+>", " ", c))).strip() for c in re.findall(r"<t[dh][^>]*>(.*?)</t[dh]>", row, re.S | re.I)]
-          for k, tb in enumerate(tables[:14]):
-              rows = re.findall(r"<tr.*?</tr>", tb, re.S | re.I)
-              cap = re.search(r"Table\s*\d+[^<]{0,90}", re.sub(r"<[^>]+>", " ", tb))
-              print("TABLE", k, "rows", len(rows), "|", cap.group(0).strip()[:100] if cap else "")
-              for r in rows[:6]: print("    ", cells(r)[:14])
-          PY
-          done
