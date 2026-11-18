@@ -707,7 +707,8 @@ function spark(vals) {
 function tiles(rows, linked, defs, page) {
   const out = [];
   for (const [label, test, suffix, preset] of defs || TILE_DEFS) {
-    const series = rows.filter((r) => r.geo === "All India" && test(r)).sort((a, b) => a.p < b.p ? -1 : 1);
+    // Survey rows are labelled Urban / Rural rather than All India.
+    const series = rows.filter((r) => (r.geo === "All India" || r.ds.startsWith("ccs_")) && test(r)).sort((a, b) => a.p < b.p ? -1 : 1);
     const r = series[series.length - 1];
     if (!r) continue;
     const big = suffix === "usd_m" ? (r.v < 0 ? "−" : "") + "$" + fmt(Math.round(Math.abs(r.v) / 100) / 10) + " bn" : fmt(r.v) + suffix;
@@ -833,7 +834,7 @@ async function showData(page, q) {
     el("h1", null, P.label), el("p", { class: "lede" }, P.lede),
     P.caveat ? el("p", { class: "caveat" }, P.caveat) : null,
     page === "macro" ? tiles(rows, false) : P.tiles ? tiles(rows, false, P.tiles, page) : null,
-    el("div", { class: "focus" }, el("label", { htmlFor: "focus" }, "Focus state"), focusSel),
+    P.nonSector ? null : el("div", { class: "focus" }, el("label", { htmlFor: "focus" }, "Focus state"), focusSel),
     el("div", { class: "grid" }, V.builder, V.newsHost),
   ].filter(Boolean));
   renderBuilder(); renderNews();

@@ -182,6 +182,7 @@ def main():
     if os.path.exists(meta_path):
         meta = json.load(open(meta_path, encoding="utf8"))
         meta.setdefault("status", {}).update(status)
+        meta.setdefault("datasets", {}).update({k: fd.DATASETS[k] for k in SURVEYS if k in fd.DATASETS})
         with open(meta_path, "w", encoding="utf8") as fh:
             json.dump(meta, fh, ensure_ascii=False, indent=1)
     for k, s in status.items():

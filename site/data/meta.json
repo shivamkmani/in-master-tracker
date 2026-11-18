@@ -91,6 +91,20 @@
    "url": "https://esankhyiki.mospi.gov.in/",
    "frequency": "Annual",
    "note": "US$ million, financial year. National only: this series has no state split."
+  },
+  "ccs_urban": {
+   "title": "Urban Consumer Confidence Survey",
+   "publisher": "RBI",
+   "url": "https://www.rbi.org.in/Scripts/BimonthlyPublications.aspx?head=Urban%20Consumer%20Confidence%20Survey%20-%20Bi-monthly",
+   "frequency": "Every two months",
+   "note": "Households in major cities. Net response = share saying improved minus share saying worsened (for prices, increased minus decreased, so negative means more expect prices to rise)."
+  },
+  "ccs_rural": {
+   "title": "Rural Consumer Confidence Survey",
+   "publisher": "RBI",
+   "url": "https://www.rbi.org.in/Scripts/BimonthlyPublications.aspx?head=Rural%20Consumer%20Confidence%20Survey%20-%20Bi-monthly",
+   "frequency": "Every two months",
+   "note": "Rural and semi-urban households. Indices above 100 mean more households are optimistic than pessimistic."
   }
  },
  "status": {
@@ -129,6 +143,12 @@
   "ASI": {
    "ok": true,
    "rows": 63986
+  },
+  "RBI urban consumer confidence": {
+   "ok": true
+  },
+  "RBI rural consumer confidence": {
+   "ok": true
   }
  }
 }
