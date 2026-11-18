@@ -7,64 +7,43 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - name: MoSPI RBI indicators mentioning consumer confidence
-        run: |
-          python3 - <<'PY'
-          import sys, json, re
-          sys.path.insert(0, "pipeline")
-          import mospi
-          m = mospi.call("get_metadata", dataset="RBI")
-          txt = json.dumps(m)
-          print("metadata size", len(txt))
-          data = m.get("data", m)
-          def walk(o, path=""):
-              if isinstance(o, dict):
-                  for k, v in o.items(): walk(v, path + "/" + k)
-              elif isinstance(o, list):
-                  for x in o: walk(x, path)
-              elif isinstance(o, str) and re.search(r"consumer|confidence|sentiment|expectation|survey|household", o, re.I):
-                  print("HIT", path, "|", o[:160])
-          walk(data)
-          ind = data.get("indicator") if isinstance(data, dict) else None
-          if ind: print("indicators:", len(ind)); [print("  ", i) for i in ind[:80]]
-          PY
-      - name: RBI feeds and survey pages
+      - name: Inspect CCS listing pages and the latest releases
         run: |
           UA="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126 Safari/537.36"
-          for u in https://www.rbi.org.in/Publication_rss.xml https://www.rbi.org.in/pressreleases_rss.xml; do
-            echo "== $u"
-            curl -sSL -A "$UA" "$u" | python3 -c "
-          import sys,re
-          t=sys.stdin.read()
-          for title,link in re.findall(r'<title>(.*?)</title>\s*<link>(.*?)</link>', t, re.S):
-              if re.search(r'consumer confidence|inflation expectations|survey', title, re.I): print(' ', title.strip()[:120], '|', link.strip())
-          "
-          done
-          echo "== RBI surveys index pages"
-          for u in "https://www.rbi.org.in/Scripts/Publications.aspx?publication=Bimonthly" "https://rbi.org.in/scripts/bs_viewcontent.aspx?Id=4076" "https://www.rbi.org.in/Scripts/BS_ViewBulletin.aspx"; do
-            echo "-- $u"
-            curl -sSL -A "$UA" "$u" -o page.html -w "HTTP %{http_code} %{size_download} bytes\n"
-            grep -o -i -E 'href="[^"]*"[^>]*>[^<]*(consumer confidence|ccs)[^<]*' page.html | head -15
-          done
-          echo "== search press releases for the latest CCS release page and its attachments"
-          curl -sSL -A "$UA" https://www.rbi.org.in/pressreleases_rss.xml -o pr.xml
-          python3 - <<'PY'
-          import re, subprocess
-          t = open("pr.xml", encoding="utf8", errors="ignore").read()
-          hits = re.findall(r'<title>([^<]*Consumer Confidence[^<]*)</title>\s*<link>([^<]+)</link>', t, re.I)
-          print("press release hits:", hits[:3])
+          for head in "Urban%20Consumer%20Confidence%20Survey%20-%20Bi-monthly" "Rural%20Consumer%20Confidence%20Survey%20-%20Bi-monthly"; do
+            echo "=================== $head"
+            curl -sSL -A "$UA" "https://www.rbi.org.in/Scripts/BimonthlyPublications.aspx?head=$head" -o list.html -w "list HTTP %{http_code} %{size_download}\n"
+            python3 - <<'PY'
+          import re, html
+          t = open("list.html", encoding="utf8", errors="ignore").read()
+          links = re.findall(r'href="([^"]*(?:PublicationsView|BimonthlyPublications)[^"]*Id=\d+[^"]*)"[^>]*>\s*([^<]{0,160})', t, re.I)
+          seen = []
+          for h, x in links:
+              if h not in [s[0] for s in seen]: seen.append((h, re.sub(r"\s+", " ", html.unescape(x)).strip()))
+          print("release links:", len(seen))
+          for h, x in seen[:12]: print("  ", x[:110], "|", h)
+          xl = re.findall(r'href="([^"]+\.(?:xlsx?|pdf|zip))"', t, re.I)
+          print("attachments on list page:", len(xl)); [print("  ", u) for u in xl[:12]]
+          open("first.txt", "w").write(seen[0][0] if seen else "")
           PY
-          echo "== publication view pages for CCS (search Bimonthly list)"
-          curl -sSL -A "$UA" "https://www.rbi.org.in/Scripts/Publications.aspx?publication=Bimonthly" -o bm.html
-          python3 - <<'PY'
-          import re
-          t = open("bm.html", encoding="utf8", errors="ignore").read()
-          links = re.findall(r'href="([^"]+)"[^>]*>\s*([^<]{0,140})', t)
-          for href, txt in links:
-              if re.search(r"consumer|confidence|inflation expect", txt, re.I) or re.search(r"\.xlsx?|\.pdf", href, re.I) and re.search(r"ccs|consumer", href, re.I):
-                  print(" ", txt.strip()[:100], "|", href)
+            FIRST=$(cat first.txt)
+            [ -z "$FIRST" ] && continue
+            case "$FIRST" in http*) U="$FIRST";; /*) U="https://www.rbi.org.in$FIRST";; *) U="https://www.rbi.org.in/Scripts/$FIRST";; esac
+            echo "--- latest release page: $U"
+            curl -sSL -A "$UA" "$U" -o rel.html -w "release HTTP %{http_code} %{size_download}\n"
+            python3 - <<'PY'
+          import re, html
+          t = open("rel.html", encoding="utf8", errors="ignore").read()
+          print("title:", re.sub(r"\s+", " ", html.unescape(re.search(r"<title>(.*?)</title>", t, re.S).group(1))).strip()[:150] if "<title>" in t else "")
+          xl = re.findall(r'href="([^"]+\.(?:xlsx?|pdf|zip))"', t, re.I)
+          print("attachments:", len(xl)); [print("  ", u) for u in xl[:15]]
+          tables = re.findall(r"<table.*?</table>", t, re.S | re.I)
+          print("html tables:", len(tables))
+          def cells(row): return [re.sub(r"\s+", " ", html.unescape(re.sub(r"<[^>]+>", " ", c))).strip() for c in re.findall(r"<t[dh][^>]*>(.*?)</t[dh]>", row, re.S | re.I)]
+          for k, tb in enumerate(tables[:14]):
+              rows = re.findall(r"<tr.*?</tr>", tb, re.S | re.I)
+              cap = re.search(r"Table\s*\d+[^<]{0,90}", re.sub(r"<[^>]+>", " ", tb))
+              print("TABLE", k, "rows", len(rows), "|", cap.group(0).strip()[:100] if cap else "")
+              for r in rows[:6]: print("    ", cells(r)[:14])
           PY
+          done
