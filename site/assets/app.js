@@ -439,7 +439,7 @@ function chart(periods, rows, f) {
       d += (pen ? "L" : "M") + x(i).toFixed(1) + " " + y(v).toFixed(1);
       pen = true;
     });
-    svg.append(s("path", { d, fill: "none", stroke: se.color, "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round" }));
+    svg.append(s("path", { d, fill: "none", stroke: se.color, "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round", pathLength: 1, class: "draw" }));
   }
   const hair = s("line", { y1: T, y2: H - B, stroke: "var(--ink3)", visibility: "hidden" });
   svg.append(hair);
@@ -1301,7 +1301,7 @@ function hdBars(items, ind, metric, indiaVal) {
     const y = T + i * rowH;
     svg.append(s("text", { x: L - 8, y: y + 14, "text-anchor": "end", "font-size": 12, fill: "var(--ink2)" }, it.label.length > 34 ? it.label.slice(0, 33) + "…" : it.label));
     if (it.v == null) { if (!it.gap) svg.append(s("text", { x: L + 4, y: y + 14, "font-size": 11, fill: "var(--ink3)" }, "no estimate")); return; }
-    const bar = s("rect", { x: L, y: y + 3, width: Math.max(1, x(it.v) - L), height: rowH - 6, rx: 2, fill: it.hl ? "var(--s2)" : "var(--s1)" });
+    const bar = s("rect", { x: L, y: y + 3, width: Math.max(1, x(it.v) - L), height: rowH - 6, rx: 2, fill: it.hl ? "var(--s2)" : "var(--s1)", class: "grow", style: "animation-delay:" + Math.min(i * 18, 500) + "ms" });
     bar.append(s("title", null, it.label + ": " + fmt(it.v)));
     svg.append(bar);
     svg.append(s("text", { x: x(it.v) + 5, y: y + 14, "font-size": 11, fill: "var(--ink2)" }, fmt(it.v)));
@@ -1532,6 +1532,9 @@ async function route() {
   } catch (e) {
     document.getElementById("app").replaceChildren(el("p", { class: "empty" }, "Couldn't load this page: " + e.message));
   }
+  // Replay the page's entrance: sections ease in one after another.
+  const app = document.getElementById("app");
+  app.classList.remove("enter"); void app.offsetWidth; app.classList.add("enter");
 }
 
 /* Secret mission control view: ?houston (before or after the #) opens it. */
