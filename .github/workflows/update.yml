@@ -44,7 +44,9 @@ jobs:
           python pipeline/retag_news.py
       - name: Fetch data
         if: github.event_name != 'push' && inputs.sdg != true
-        run: python pipeline/fetch_data.py ${{ inputs.full == true && '--full' || '--skip-asi' }}
+        run: |
+          python pipeline/fetch_data.py ${{ inputs.full == true && '--full' || '--skip-asi' }}
+          python pipeline/fetch_surveys.py
       - name: Build Human development data (Harvard SDG estimates)
         if: inputs.sdg == true
         run: |

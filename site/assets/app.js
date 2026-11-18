@@ -165,6 +165,27 @@ const PAGES = {
       ["Household fuel inflation", (r) => r.ds === "cpi" && /inflation/.test(r.ind), "%", "Household fuel inflation"],
     ],
   },
+  surveys: {
+    label: "Surveys", news: "macro", nonSector: true,
+    lede: "How households see the economy, jobs, prices, income and spending, now and a year ahead, from RBI's urban and rural Consumer Confidence Surveys.",
+    caveat: "Net response is the share saying things improved minus the share saying they worsened. For prices and inflation it is increased minus decreased, so a more negative number means more households see prices rising. Rural indices above 100 mean optimists outnumber pessimists. Each RBI release shows its latest five rounds; the history here is built from every release on RBI's site.",
+    tiles: [
+      ["Rural: current situation", (r) => r.ds === "ccs_rural" && r.ind === "Current Situation Index", "", "Rural confidence indices"],
+      ["Rural: future expectations", (r) => r.ds === "ccs_rural" && r.ind === "Future Expectations Index", "", "Rural confidence indices"],
+      ["Urban: economy, net now", (r) => r.ds === "ccs_urban" && r.seg === "Economic situation" && r.ind === "Net response, current", "", "Economy: urban vs rural"],
+      ["Rural: expected inflation", (r) => r.ds === "ccs_rural" && r.ind === "Median inflation expected a year ahead", "%", "Household inflation expectations"],
+    ],
+    presets: [
+      ["Economy: urban vs rural", { seg: /^Economic situation$/, ind: /^Net response/, freq: "Monthly" }],
+      ["Employment", { seg: /^Employment$/, ind: /^Net response/, freq: "Monthly" }],
+      ["Prices and inflation", { seg: /^(Price level|Inflation)$/, ind: /^Net response/, freq: "Monthly" }],
+      ["Income", { seg: /^Income$/, ind: /^Net response/, freq: "Monthly" }],
+      ["Spending", { seg: /^Spending/, ind: /^Net response, current/, freq: "Monthly" }],
+      ["Rural confidence indices", { ds: ["ccs_rural"], seg: /^Consumer confidence$/, freq: "Monthly" }],
+      ["Household inflation expectations", { seg: /^Household inflation expectations$/, freq: "Monthly" }],
+      ["Full breakdown: economy", { seg: /^Economic situation$/, freq: "Monthly" }],
+    ],
+  },
   finance: {
     label: "Finance", news: "finance",
     lede: "Banking, insurance and financial services: value added nationally and by state, monthly service output, reserves, and developments from RBI, SEBI and others.",
@@ -179,7 +200,7 @@ const PAGES = {
   },
 };
 
-const MONTHLY = new Set(["cpi", "wpi", "iip", "isp", "rbi_trade", "rbi_fx"]);
+const MONTHLY = new Set(["cpi", "wpi", "iip", "isp", "rbi_trade", "rbi_fx", "ccs_urban", "ccs_rural"]);
 const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const MAX_ROWS = 300;
 const MAX_SERIES = 6;
@@ -752,7 +773,7 @@ async function showHome() {
 
   // One card per section: what's new there this week
   const weekAgo = localISO(new Date(Date.now() - 7 * 864e5));
-  const sections = Object.entries(PAGES).filter(([k]) => k !== "macro").map(([k, P]) => {
+  const sections = Object.entries(PAGES).filter(([k, P]) => k !== "macro" && !P.nonSector).map(([k, P]) => {
     const sectors = P.news ? [].concat(P.news) : null;
     const rel = G.news.items.filter((r) => sectors ? r.sectors.some((x) => sectors.includes(x)) : r.scope === "State");
     const week = rel.filter((r) => r.date >= weekAgo).length;
@@ -822,7 +843,7 @@ function showSources() {
   V = null;
   const m = G.meta;
   const stat = (s, k) => k === "ipi_sdg" ? el("span", { class: "muted" }, "Static dataset") : !s ? el("span", { class: "muted" }, "Not run") : s.ok ? el("span", { class: "ok" }, "Updated") : el("span", { class: "fail", title: s.error || "" }, "Failed, showing last good data");
-  const groups = { nas: "National accounts", gsdp: "State accounts", gsva: "State accounts", cpi: "CPI", iip: "IIP", wpi: "WPI", isp: "ISP", plfs: "PLFS", asi: "ASI", rbi_trade: "RBI", rbi_fx: "RBI", rbi_commodity: "RBI" };
+  const groups = { nas: "National accounts", gsdp: "State accounts", gsva: "State accounts", cpi: "CPI", iip: "IIP", wpi: "WPI", isp: "ISP", plfs: "PLFS", asi: "ASI", rbi_trade: "RBI", rbi_fx: "RBI", rbi_commodity: "RBI", ccs_urban: "RBI urban consumer confidence", ccs_rural: "RBI rural consumer confidence" };
   const data = el("table", { class: "src-table" }, el("thead", null, el("tr", null, ["Dataset", "Publisher", "Frequency", "Status", "Notes"].map((t) => el("th", null, t)))),
     el("tbody", null, Object.entries(m.datasets).map(([k, d]) => el("tr", null, el("td", null, el("a", { href: d.url, target: "_blank", rel: "noopener" }, d.title)), el("td", null, d.publisher), el("td", null, d.frequency), el("td", null, stat(m.status[groups[k]], k)), el("td", null, d.note)))));
   const feeds = el("table", { class: "src-table" }, el("thead", null, el("tr", null, ["Feed", "Type", "Status", "Items read"].map((t) => el("th", null, t)))),
@@ -1462,7 +1483,7 @@ async function showHd(q) {
 }
 
 /* ---------- "Sectors" dropdown in the tab bar ---------- */
-const SECTOR_KEYS = Object.keys(PAGES).filter((k) => k !== "macro" && k !== "states");
+const SECTOR_KEYS = Object.keys(PAGES).filter((k) => k !== "macro" && k !== "states" && !PAGES[k].nonSector);
 function closeSectors() {
   const m = document.querySelector(".sec-menu");
   if (m) m.remove();
@@ -1547,7 +1568,7 @@ async function start() {
   const nav = document.getElementById("nav");
   const link = (k, label) => { const a = el("a", { href: "#/" + k }, label); a.dataset.p = k; return a; };
   nav.append(link("dashboard", "Dashboard"), link("daily", "Daily updates"), link("macro", PAGES.macro.label),
-    link("states", PAGES.states.label), link("hd", "Human development"), sectorsButton(), link("sources", "Sources"));
+    link("states", PAGES.states.label), link("hd", "Human development"), link("surveys", "Surveys"), sectorsButton(), link("sources", "Sources"));
   try {
     [G.meta, G.news] = await Promise.all([getJSON("meta"), getJSON("news")]);
   } catch (e) {
