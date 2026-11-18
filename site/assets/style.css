@@ -100,7 +100,7 @@ button:disabled{opacity:.45;cursor:default}
 .cal-h{display:flex;justify-content:space-between;align-items:center;gap:6px;margin-bottom:6px}
 .cal-h select{flex:1;text-align:center}
 .cal-h button{min-width:34px;font-size:16px}
-.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+.cal-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:3px}
 .cal-grid .dow{font-size:11px;color:var(--ink3);text-align:center;padding:2px 0}
 .cal-grid .day{min-height:36px;padding:0;border-color:transparent;background:none;color:var(--ink3);position:relative;font-variant-numeric:tabular-nums}
 .cal-grid .day.has{color:var(--ink);font-weight:600;background:var(--line2)}

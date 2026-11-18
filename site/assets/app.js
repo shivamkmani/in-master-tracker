@@ -973,10 +973,12 @@ function showDaily(q) {
       drawCal();
     };
     const first = dates[0], last = dates[dates.length - 1];
+    // Weekdays only: picks are made Monday to Friday.
     const grid = el("div", { class: "cal-grid", role: "grid" },
-      ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"].map((d) => el("span", { class: "dow", "aria-hidden": "true" }, d)));
-    for (let i = 0; i < startDow; i++) grid.append(el("span"));
+      ["Mo", "Tu", "We", "Th", "Fr"].map((d) => el("span", { class: "dow", "aria-hidden": "true" }, d)));
+    for (let i = 0; i < (startDow < 5 ? startDow : 0); i++) grid.append(el("span"));
     for (let d = 1; d <= days; d++) {
+      if ((startDow + d - 1) % 7 >= 5) continue;  // Saturday or Sunday
       const iso = D.month + "-" + String(d).padStart(2, "0");
       const n = (byDate.get(iso) || []).length;
       const cls = ["day", n ? "has" : "", iso === D.date && !D.q ? "sel" : "", iso === today ? "today" : ""].filter(Boolean).join(" ");
