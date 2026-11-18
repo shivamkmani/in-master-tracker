@@ -91,13 +91,18 @@ def parse_release(page):
     for tb in re.findall(r"<table.*?</table>", page, re.S | re.I):
         rows = [[clean(c) for c in re.findall(r"<t[dh][^>]*>(.*?)</t[dh]>", r, re.S | re.I)]
                 for r in re.findall(r"<tr.*?</tr>", tb, re.S | re.I)]
-        text = " ".join(" ".join(r) for r in rows[:4])
-        cap = re.search(r"Table\s*\d+\s*:\s*([^|]+?)(?:\(Percentage responses\)|Survey Round|$)", text)
-        caption = cap.group(1).strip() if cap else ""
         data = [r for r in rows if r and period(r[0])]
         if not data:
             continue
-        if re.search(r"Current Situation Index", text, re.I):
+        # The title is the last "Table N: ..." line above the first data row. The
+        # first table also carries the release header and introduction text,
+        # which mention the indices, so only short header cells decide type.
+        first = next(i for i, r in enumerate(rows) if r and period(r[0]))
+        above = rows[:first]
+        caps = [m.group(1).strip() for r in above for c in r for m in [re.match(r"^Table\s*\d+\s*:\s*(.+)$", c)] if m]
+        caption = caps[-1] if caps else ""
+        header_cells = [c for r in above for c in r if len(c) < 80]
+        if any(re.search(r"Current Situation Index", c, re.I) for c in header_cells):
             for r in data:
                 p = period(r[0])
                 for name, v in (("Current Situation Index", r[1] if len(r) > 1 else None),
