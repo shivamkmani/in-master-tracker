@@ -88,7 +88,10 @@ TOPIC_RX = re.compile(r"Expectations on (?:the )?(.+?)\s*\*?$", re.I)
 def parse_release(page):
     """Yield (segment, indicator, unit, period, value) from one release page."""
     out = []
-    for tb in re.findall(r"<table.*?</table>", page, re.S | re.I):
+    prev_end = 0
+    for tm_ in re.finditer(r"<table.*?</table>", page, re.S | re.I):
+        tb = tm_.group(0)
+        span_start, prev_end = prev_end, tm_.end()
         rows = [[clean(c) for c in re.findall(r"<t[dh][^>]*>(.*?)</t[dh]>", r, re.S | re.I)]
                 for r in re.findall(r"<tr.*?</tr>", tb, re.S | re.I)]
         data = [r for r in rows if r and period(r[0])]
@@ -99,8 +102,14 @@ def parse_release(page):
         # which mention the indices, so only short header cells decide type.
         first = next(i for i, r in enumerate(rows) if r and period(r[0]))
         above = rows[:first]
-        caps = [m.group(1).strip() for r in above for c in r for m in [re.match(r"^Table\s*\d+\s*:\s*(.+)$", c)] if m]
-        caption = caps[-1] if caps else ""
+        # Title: the last "Table N: ..." line before the first data row, which on
+        # RBI's pages can sit inside the table or in the release text before it.
+        first_row_pos = tm_.start() + tb.find(re.findall(r"<tr.*?</tr>", tb, re.S | re.I)[
+            next(i for i, r in enumerate(re.findall(r"<tr.*?</tr>", tb, re.S | re.I))
+                 if period(clean((re.findall(r"<t[dh][^>]*>(.*?)</t[dh]>", r, re.S | re.I) or [""])[0]) or ""))])
+        lead = clean(page[span_start:first_row_pos])
+        caps = re.findall(r"Table\s*\d+\s*:\s*(.+?)(?=\s*\(Percentage responses\)|\s*Survey Round|\s*Table\s*\d+\s*:|$)", lead)
+        caption = caps[-1].strip() if caps else ""
         header_cells = [c for r in above for c in r if len(c) < 80]
         if any(re.search(r"Current Situation Index", c, re.I) for c in header_cells):
             for r in data:
