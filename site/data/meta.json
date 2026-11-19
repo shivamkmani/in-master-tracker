@@ -1,5 +1,5 @@
 {
- "updated": "2026-11-18T09:15+00:00",
+ "updated": "2026-11-19T09:41+00:00",
  "datasets": {
   "nas": {
    "title": "National Accounts Statistics",
@@ -78,20 +78,6 @@
    "frequency": "Monthly",
    "note": "US$ million. MoSPI's copy of this RBI series lags; check the latest period shown."
   },
-  "ipi_sdg": {
-   "title": "India Policy Insights: SDG estimates by state, district and village",
-   "publisher": "Harvard University, Harvard Dataverse",
-   "url": "https://dataverse.harvard.edu/dataset.xhtml?persistentId=doi:10.7910/DVN/GO8W1W",
-   "frequency": "One-off (2021 estimates)",
-   "note": "Model-based estimates from NFHS-5 and the 2011 Census for 35 SDG indicators, rural villages. CC0. Rebuilt only on request."
-  },
-  "rbi_commodity": {
-   "title": "Exports and imports of major commodities",
-   "publisher": "RBI, via MoSPI",
-   "url": "https://esankhyiki.mospi.gov.in/",
-   "frequency": "Annual",
-   "note": "US$ million, financial year. National only: this series has no state split."
-  },
   "ccs_urban": {
    "title": "Urban Consumer Confidence Survey",
    "publisher": "RBI",
@@ -105,6 +91,20 @@
    "url": "https://www.rbi.org.in/Scripts/BimonthlyPublications.aspx?head=Rural%20Consumer%20Confidence%20Survey%20-%20Bi-monthly",
    "frequency": "Every two months",
    "note": "Rural and semi-urban households. Indices above 100 mean more households are optimistic than pessimistic."
+  },
+  "ipi_sdg": {
+   "title": "India Policy Insights: SDG estimates by state, district and village",
+   "publisher": "Harvard University, Harvard Dataverse",
+   "url": "https://dataverse.harvard.edu/dataset.xhtml?persistentId=doi:10.7910/DVN/GO8W1W",
+   "frequency": "One-off (2021 estimates)",
+   "note": "Model-based estimates from NFHS-5 and the 2011 Census for 35 SDG indicators, rural villages. CC0. Rebuilt only on request."
+  },
+  "rbi_commodity": {
+   "title": "Exports and imports of major commodities",
+   "publisher": "RBI, via MoSPI",
+   "url": "https://esankhyiki.mospi.gov.in/",
+   "frequency": "Annual",
+   "note": "US$ million, financial year. National only: this series has no state split."
   }
  },
  "status": {
@@ -145,10 +145,14 @@
    "rows": 63986
   },
   "RBI urban consumer confidence": {
-   "ok": true
+   "ok": true,
+   "rows": 2240,
+   "releases": 5
   },
   "RBI rural consumer confidence": {
-   "ok": true
+   "ok": true,
+   "rows": 2380,
+   "releases": 5
   }
  }
 }
