@@ -775,7 +775,7 @@ async function showHome() {
   const updated = new Date(G.meta.updated).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
   document.getElementById("app").replaceChildren(
     el("div", { class: "home-h" },
-      el("h1", null, "Dashboard"),
+      el("h1", null, "Home"),
       el("p", { class: "muted" }, longDate(today) + ". Official data refreshed " + updated + ".")),
     // Three columns: macro figures down the left, daily updates in the middle,
     // chart of the day and macro developments on the right.
@@ -1917,7 +1917,7 @@ async function start() {
   if (houstonWanted()) { location.replace("houston.html"); return; }
   const nav = document.getElementById("nav");
   const link = (k, label) => { const a = el("a", { href: "#/" + k }, label); a.dataset.p = k; return a; };
-  nav.append(link("dashboard", "Dashboard"), link("daily", "Daily updates"), link("macro", PAGES.macro.label),
+  nav.append(link("daily", "Daily updates"), link("macro", PAGES.macro.label),
     link("states", PAGES.states.label), link("hd", "Human development"), link("surveys", "Surveys"), sectorsButton(), link("sources", "Sources"));
   try {
     [G.meta, G.news] = await Promise.all([getJSON("meta"), getJSON("news")]);
