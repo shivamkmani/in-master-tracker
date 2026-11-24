@@ -249,3 +249,17 @@ table.cmp tbody tr:not(.grp):hover{background:var(--accent-soft)}
 table.cmp{table-layout:fixed;font-size:13px}
 table.cmp th:first-child,table.cmp td:first-child{width:38%}
 table.cmp th.n,table.cmp td.n{white-space:normal}
+/* dashboard: macro figures | daily updates | chart of the day + developments */
+.dash{display:grid;grid-template-columns:230px minmax(0,1fr) 380px;gap:20px;align-items:start;margin:18px 0 32px}
+.dash-left .tiles{grid-template-columns:1fr;margin:0;gap:10px}
+.dash-left .tile{padding:11px 13px}
+.dash-left .tile b{font-size:22px}
+.dash-left,.dash-right{display:grid;gap:20px;min-width:0}
+.dash-right .story{grid-template-columns:1fr;gap:10px;margin:0}
+.dash-right .story h2{font-size:18px}
+.dash-right .story-chart{order:2}
+.dash-right .story .actions{flex-wrap:wrap}
+.story-nav{white-space:nowrap;flex:none}
+.story-kick{gap:10px;align-items:flex-start}
+@media (max-width:1250px){.dash{grid-template-columns:minmax(0,1fr) 360px}.dash-left{grid-column:1/-1}.dash-left .tiles{grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}}
+@media (max-width:860px){.dash{grid-template-columns:1fr}.dash-main{order:-1}.dash-left{order:2}.dash-left .tiles{grid-template-columns:1fr 1fr}}

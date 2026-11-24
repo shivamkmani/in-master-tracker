@@ -772,29 +772,17 @@ async function showHome() {
       : el("p", { class: "empty" }, "No recent macro developments."),
     el("div", { class: "card-f" }, more("#/macro", "All macro data and news"), more("#/finance", "Finance")));
 
-  // One card per section: what's new there this week
-  const weekAgo = localISO(new Date(Date.now() - 7 * 864e5));
-  const sections = Object.entries(PAGES).filter(([k, P]) => k !== "macro" && !P.nonSector).map(([k, P]) => {
-    const sectors = P.news ? [].concat(P.news) : null;
-    const rel = G.news.items.filter((r) => sectors ? r.sectors.some((x) => sectors.includes(x)) : r.scope === "State");
-    const week = rel.filter((r) => r.date >= weekAgo).length;
-    const top = rel[0];
-    return el("a", { class: "sec-card", href: "#/" + k },
-      el("b", null, P.label),
-      el("span", { class: "muted" }, week ? week + (week === 1 ? " development" : " developments") + " this week" : "No new developments this week"),
-      top ? el("small", null, tidy(top.title)) : null);
-  });
-
   const updated = new Date(G.meta.updated).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
   document.getElementById("app").replaceChildren(
     el("div", { class: "home-h" },
       el("h1", null, "Dashboard"),
       el("p", { class: "muted" }, longDate(today) + ". Official data refreshed " + updated + ".")),
-    tiles(macro, true),
-    await storyCard(),
-    el("div", { class: "grid" }, daily, devs),
-    el("h2", { class: "sec-title" }, "Sectors and states"),
-    el("section", { class: "sec-cards", "aria-label": "Sections" }, sections));
+    // Three columns: macro figures down the left, daily updates in the middle,
+    // chart of the day and macro developments on the right.
+    el("div", { class: "dash" },
+      el("div", { class: "dash-left" }, tiles(macro, true)),
+      el("div", { class: "dash-main" }, daily),
+      el("div", { class: "dash-right" }, await storyCard(), devs)));
 }
 
 /* ---------- pages ---------- */
