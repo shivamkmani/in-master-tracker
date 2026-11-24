@@ -4,7 +4,7 @@ A static site that brings together Indian macro, state and sector data with a da
 
 ## Sections
 
-Dashboard (the landing page: headline macro figures, the latest daily picks, recent macro developments and a card per section; the site title returns here), Daily updates, India macro, States, Human development (35 SDG indicators by state, district and village), Semiconductors, Electronics, Logistics, Textiles, Auto, Chemicals, Pharma, Energy, Finance, and Sources. Sector pages open with headline figures, and every chart can be copied or downloaded as a PNG with its title, legend and source.
+Dashboard (the landing page: headline macro figures, a rotating Chart of the day, the latest daily picks, recent macro developments and a card per section; the site title returns here), Daily updates, India macro, States, State profiles and State rankings (reached from States), Human development (35 SDG indicators by state, district and village), Semiconductors, Electronics, Logistics, Textiles, Auto, Chemicals, Pharma, Energy, Finance, and Sources. Sector pages open with headline figures, and every chart can be copied or downloaded as a PNG with its title, legend and source.
 
 Daily updates shows the articles hand-picked for the day, with a calendar for past days and a search across every title. It is filled from the running updates document (see `picks/README.md`).
 

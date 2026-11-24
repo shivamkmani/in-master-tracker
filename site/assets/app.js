@@ -1555,6 +1555,7 @@ async function stateData() {
 }
 const fmtMetric = (m, v) => v == null ? "–" : m.unit === "₹ crore" ? "₹" + fmt(Math.round(v / 1000) / 100) + " lakh cr" : m.unit === "₹" ? "₹" + fmt(Math.round(v)) : fmt(v) + (m.unit === "%" ? "%" : "");
 const pLabel = (p) => /^\d{4}-\d{2}$/.test(p) && +p.slice(5) <= 12 && !/^\d{4}-(1[3-9]|[2-9]\d)$/.test(p) && p.slice(0, 4) >= "2020" && /-(0\d|1[0-2])$/.test(p) && !/^\d{4}-\d{2}$/.test(p.replace(/-(0[1-9]|1[0-2])$/, "")) ? MON[+p.slice(5) - 1] + " " + p.slice(0, 4) : p;
+const poss = (n) => n + (/s$/i.test(n) ? "'" : "'s");  // "Islands'", "Punjab's"
 const ordinal = (n) => n + (n % 100 >= 11 && n % 100 <= 13 ? "th" : ["th", "st", "nd", "rd"][n % 10] || "th");
 const betterThan = (m, a, b) => m.better == null || a == null || b == null ? 0 : (m.better === "high" ? a - b : b - a);
 
@@ -1655,7 +1656,7 @@ async function showStateProfile(q) {
   const tot = (gv.find((r) => r.p === yr && r.seg === "Total Gross State Value Added") || {}).v;
   const shares = gv.filter((r) => r.p === yr && r.seg !== "Total Gross State Value Added" && tot).map((r) => ({ label: r.seg.replace(/, Ownership of Dwelling & Professional Services/, " & professional").replace(/Transport, Storage, Communication & Services Related to Broadcasting/, "Transport & communication").replace(/Electricity, Gas, Water Supply & Other Utility Services/, "Utilities").replace(/Agriculture, Livestock, Forestry and Fishing/, "Agriculture"), v: Math.round(1000 * r.v / tot) / 10 })).sort((a, b) => b.v - a.v);
   const structChart = shares.length ? hdBars(shares, { name: "Share of GSVA" }, "mean", null) : null;
-  const structCard = el("section", { class: "card" }, el("div", { class: "card-h" }, el("h2", null, "What the economy is made of"), el("span", { class: "muted" }, "Share of GSVA, " + (yr || "") + ", %")), structChart || el("p", { class: "muted" }, "No industry breakdown for this state."),
+  const structCard = el("section", { class: "card" }, el("div", { class: "card-h" }, el("h2", null, "Economy profile"), el("span", { class: "muted" }, "Share of GSVA, " + (yr || "") + ", %")), structChart || el("p", { class: "muted" }, "No industry breakdown for this state."),
     structChart ? el("div", { class: "tfoot" }, el("span", null), el("div", { class: "actions" }, chartButtonsFor(structChart, name + ": share of gross state value added by industry, " + yr + " (%)", "Source: MoSPI state accounts, current prices."))) : null);
 
   // human development
@@ -1729,10 +1730,58 @@ async function buildStories() {
     const top = ranked.slice(0, 8).map((r) => ({ geo: r.geo, v: r.v }));
     out.push({ kicker: "States", bars: top.map((r) => ({ label: r.geo, v: r.v })), unit: "%", page: "rankings", href: "#/rankings?m=growth",
       title: ranked[0].geo + " grew fastest in " + yr,
-      text: ranked[0].geo + "'s economy grew " + fmt(ranked[0].v) + "% in real terms in " + yr + ", ahead of " + ranked[1].geo + " (" + fmt(ranked[1].v) + "%) and " + ranked[2].geo + " (" + fmt(ranked[2].v) + "%). " + ranked.length + " states reported for that year.",
+      text: poss(ranked[0].geo) + " economy grew " + fmt(ranked[0].v) + "% in real terms in " + yr + ", ahead of " + ranked[1].geo + " (" + fmt(ranked[1].v) + "%) and " + ranked[2].geo + " (" + fmt(ranked[2].v) + "%). " + ranked.length + " states reported for that year.",
       src: "MoSPI, state domestic product (base 2011-12)" });
   }
-  // 4. Rural consumer confidence
+  // 4. Jobs: unemployment across states (latest PLFS year)
+  const ur = st.filter((r) => r.ind === "Unemployment rate" && r.geo !== "All India");
+  const uy = uniq(ur.map((r) => r.p)).sort().pop();
+  const iu = latestOf(macro.filter((r) => r.ind === "Unemployment rate" && r.geo === "All India"));
+  if (uy) {
+    const rk = ur.filter((r) => r.p === uy).sort((a, b) => b.v - a.v);
+    if (rk.length > 5) {
+      const hi = rk[0], lo = rk[rk.length - 1];
+      out.push({ kicker: "Jobs", bars: rk.slice(0, 8).map((r) => ({ label: r.geo, v: r.v })), unit: "%", page: "states", preset: "Unemployment",
+        title: hi.geo + " had the highest unemployment rate in " + uy,
+        text: fmt(hi.v) + "% of " + poss(hi.geo) + " labour force was unemployed in " + uy + ", against " + (iu ? fmt(iu.v) + "% nationally" : "the national rate") + " and " + fmt(lo.v) + "% in " + lo.geo + ", the lowest. Figures are for people aged 15 and over, by usual status.",
+        src: "MoSPI, Periodic Labour Force Survey" });
+    }
+  }
+  // 5. Energy: power output and the renewable share of its growth
+  try {
+    const en = await loadPage("energy");
+    const pw = ser((r) => r.ds === "iip" && /growth/.test(r.ind) && r.seg === "Electricity", en);
+    const re = ser((r) => r.ds === "iip" && /growth/.test(r.ind) && r.seg === "Renewable Electricity", en);
+    const nr = ser((r) => r.ds === "iip" && /growth/.test(r.ind) && r.seg === "Non-Renewable Electricity", en);
+    if (pw.length > 3) {
+      const l = pw[pw.length - 1], lr = re.find((r) => r.p === l.p), ln = nr.find((r) => r.p === l.p);
+      const avg = pw.slice(-13, -1).reduce((t, r) => t + r.v, 0) / Math.min(12, pw.length - 1);
+      out.push({ kicker: "Energy", rows: pw.slice(-12), unit: "%", page: "energy", preset: "Power output growth",
+        title: "Power generation " + (l.v >= 0 ? "grew " : "fell ") + fmt(Math.abs(l.v)) + "% in " + periodLabel(l.p, "Monthly"),
+        text: "Electricity output was " + fmt(Math.abs(l.v)) + "% " + (l.v >= 0 ? "higher" : "lower") + " than a year earlier, " + (l.v > avg ? "above" : "below") + " its 12-month average of " + fmt(Math.round(avg * 10) / 10) + "%." +
+          (lr && ln ? " Renewable generation " + (lr.v >= 0 ? "rose " : "fell ") + fmt(Math.abs(lr.v)) + "%, against " + (ln.v >= 0 ? "a rise of " : "a fall of ") + fmt(Math.abs(ln.v)) + "% for coal, gas and other sources." : ""),
+        src: "MoSPI, Index of Industrial Production" });
+    }
+  } catch (e) { /* energy file unavailable */ }
+  // 6. State spotlight: a different state each day
+  try {
+    const S = await stateData();
+    const pool = S.states.filter((n) => S.metrics.find((m) => m.key === "growth").get(n) && S.metrics.find((m) => m.key === "pcnsdp").get(n));
+    if (pool.length) {
+      const n = pool[Math.floor(Date.now() / 864e5) % pool.length];
+      const M = (k) => S.metrics.find((m) => m.key === k);
+      const g = M("growth").get(n), pc = M("pcnsdp").get(n), gr = S.ranks.growth, pr = S.ranks.pcnsdp;
+      const rows = (S.by.get(n) || []).filter((r) => r.ind === "GSDP Growth Rate (constant prices)").sort((a, b) => a.p < b.p ? -1 : 1).slice(-10);
+      // the human development indicator where the state does best relative to others
+      const hdBest = S.metrics.filter((m) => m.group.startsWith("Human") && S.ranks[m.key].of.get(n)).sort((a, b) => S.ranks[a.key].of.get(n) / S.ranks[a.key].n - S.ranks[b.key].of.get(n) / S.ranks[b.key].n)[0];
+      const hdTxt = hdBest ? " On human development it does best on " + hdBest.label.toLowerCase() + " (" + fmtMetric(hdBest, hdBest.get(n).v) + ", " + ordinal(S.ranks[hdBest.key].of.get(n)) + " of " + S.ranks[hdBest.key].n + ")." : "";
+      out.push({ kicker: "State spotlight", rows: rows.map((r) => ({ ...r, f: "Annual" })), unit: "%", page: "state", href: "#/state?n=" + encodeURIComponent(n),
+        title: n + ": " + fmt(g.v) + "% growth, " + ordinal(gr.of.get(n)) + " of " + gr.n + " states",
+        text: poss(n) + " economy grew " + fmt(g.v) + "% in real terms in " + g.p + ". Its per capita income of " + fmtMetric(M("pcnsdp"), pc.v) + " ranks " + ordinal(pr.of.get(n)) + " of " + pr.n + "." + hdTxt,
+        src: "MoSPI state accounts; Harvard India Policy Insights" });
+    }
+  } catch (e) { /* state data unavailable */ }
+  // 7. Rural consumer confidence
   try {
     const sv = await loadPage("surveys");
     const csi = ser((r) => r.ds === "ccs_rural" && r.ind === "Current Situation Index", sv);
