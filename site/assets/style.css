@@ -225,3 +225,27 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px var(--accent-soft)}
   html{scroll-behavior:auto}
   *,*::before,*::after{animation-duration:.01ms!important;animation-delay:0s!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
 }
+/* chart of the day */
+.story{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.4fr);gap:24px;align-items:center;margin-bottom:20px}
+.story-kick{display:flex;justify-content:space-between;align-items:center;font:800 11.5px/1 inherit;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin-bottom:10px}
+.story-nav{display:flex;align-items:center;gap:6px;text-transform:none;letter-spacing:0;font-weight:600}
+.story-nav button{min-height:28px;padding:0 9px}
+.story h2{font-size:22px;line-height:1.25;letter-spacing:-.01em;margin:0 0 8px}
+.story p{margin:0 0 8px;color:var(--ink2)}
+.story .actions{align-items:center;margin-top:6px}
+.story-chart .chart{margin:0}
+@media (max-width:900px){.story{grid-template-columns:1fr}}
+/* state profile and rankings */
+.stack{display:grid;gap:20px;min-width:0}
+.state-pick{min-width:220px;font-size:15px}
+.focus-links{display:flex;gap:16px;margin-left:auto}
+.cmp-pick{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+.cmp-pick select{flex:1;min-width:140px}
+table.cmp td small{display:block;color:var(--ink3);font-size:11px;font-weight:400}
+table.cmp td.win b{color:var(--s3)}
+table.cmp tr.grp td{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--ink3);background:var(--line2)}
+table.cmp tbody tr:not(.grp){cursor:pointer}
+table.cmp tbody tr:not(.grp):hover{background:var(--accent-soft)}
+table.cmp{table-layout:fixed;font-size:13px}
+table.cmp th:first-child,table.cmp td:first-child{width:38%}
+table.cmp th.n,table.cmp td.n{white-space:normal}

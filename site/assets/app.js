@@ -791,6 +791,7 @@ async function showHome() {
       el("h1", null, "Dashboard"),
       el("p", { class: "muted" }, longDate(today) + ". Official data refreshed " + updated + ".")),
     tiles(macro, true),
+    await storyCard(),
     el("div", { class: "grid" }, daily, devs),
     el("h2", { class: "sec-title" }, "Sectors and states"),
     el("section", { class: "sec-cards", "aria-label": "Sections" }, sections));
@@ -834,7 +835,10 @@ async function showData(page, q) {
     el("h1", null, P.label), el("p", { class: "lede" }, P.lede),
     P.caveat ? el("p", { class: "caveat" }, P.caveat) : null,
     page === "macro" ? tiles(rows, false) : P.tiles ? tiles(rows, false, P.tiles, page) : null,
-    P.nonSector ? null : el("div", { class: "focus" }, el("label", { htmlFor: "focus" }, "Focus state"), focusSel),
+    P.nonSector ? null : el("div", { class: "focus" }, el("label", { htmlFor: "focus" }, "Focus state"), focusSel,
+      page === "states" ? el("span", { class: "focus-links" },
+        el("a", { class: "more", href: "#/state" + (G.focus ? "?n=" + encodeURIComponent(G.focus) : ""), onclick: (e) => { e.currentTarget.href = "#/state" + (G.focus ? "?n=" + encodeURIComponent(G.focus) : ""); } }, "State profile →"),
+        el("a", { class: "more", href: "#/rankings" }, "State rankings →")) : null),
     el("div", { class: "grid" }, V.builder, V.newsHost),
   ].filter(Boolean));
   renderBuilder(); renderNews();
@@ -1485,6 +1489,294 @@ async function showHd(q) {
   save(); drawMain(); drawSide();
 }
 
+/* ---------- state metrics shared by profiles and rankings ---------- */
+const normState = (s) => String(s || "").toLowerCase().replace(/^nct of /, "").replace(/&/g, "and").replace(/[^a-z]/g, "");
+const latestOf = (rows) => rows.reduce((a, r) => (!a || r.p > a.p ? r : a), null);
+
+async function stateData() {
+  if (G.stateData) return G.stateData;
+  const [st, macro, hd] = await Promise.all([loadPage("states"), loadPage("macro"), loadHd()]);
+  const by = new Map();
+  for (const r of st) { if (r.geo === "All India") continue; if (!by.has(r.geo)) by.set(r.geo, []); by.get(r.geo).push(r); }
+  const hdState = new Map(((hd && hd.states) || []).map((s) => [normState(s.name), s]));
+  const hdInd = (re) => hd ? hd.indicators.findIndex((i) => re.test(i.name)) : -1;
+  const pick = (rows, test) => latestOf(rows.filter(test));
+  // India comparators from the national files
+  const india = {
+    gdpGrowth: latestOf(macro.filter((r) => /GDP Growth Rate \(constant/.test(r.ind) && r.f === "Annual")),
+    cpi: latestOf(macro.filter((r) => r.ind.startsWith("CPI inflation") && r.seg === "CPI (General)" && r.geo === "All India")),
+    unemp: latestOf(macro.filter((r) => r.ind === "Unemployment rate" && r.geo === "All India")),
+    lfpr: latestOf(macro.filter((r) => r.ind === "Labour force participation rate" && r.geo === "All India")),
+  };
+  const hdMetric = (key, label, re, better) => {
+    const i = hdInd(re);
+    return { key, label, unit: "%", better, group: "Human development (rural, 2021)", src: "Harvard India Policy Insights",
+      get: (name) => { const s = hdState.get(normState(name)); return s && i >= 0 && s.mean[i] != null ? { v: s.mean[i], p: "2021" } : null; },
+      india: hd && i >= 0 && hd.india.mean[i] != null ? { v: hd.india.mean[i], p: "2021" } : null };
+  };
+  const metrics = [
+    { key: "gsdp", label: "GSDP, current prices", unit: "₹ crore", better: "high", group: "Economy", src: "MoSPI state accounts",
+      get: (n) => pick(by.get(n) || [], (r) => r.ind === "Gross State Domestic Product (current prices)") },
+    { key: "growth", label: "GSDP growth, real", unit: "%", better: "high", group: "Economy", src: "MoSPI state accounts",
+      get: (n) => pick(by.get(n) || [], (r) => r.ind === "GSDP Growth Rate (constant prices)"), india: india.gdpGrowth && { v: india.gdpGrowth.v, p: india.gdpGrowth.p, note: "national GDP, 2022-23 base" } },
+    { key: "pcnsdp", label: "Per capita income (NSDP), current prices", unit: "₹", better: "high", group: "Economy", src: "MoSPI state accounts",
+      get: (n) => pick(by.get(n) || [], (r) => r.ind === "Per Capita Net State Domestic Product (current prices)") },
+    { key: "mfg", label: "Manufacturing share of GSVA", unit: "%", better: null, group: "Economy", src: "MoSPI state accounts",
+      get: (n) => {
+        const rows = (by.get(n) || []).filter((r) => r.ind === "Gross State Value Added (current prices)");
+        const yr = (latestOf(rows.filter((r) => r.seg === "Manufacturing")) || {}).p;
+        const m = rows.find((r) => r.p === yr && r.seg === "Manufacturing"), t = rows.find((r) => r.p === yr && r.seg === "Total Gross State Value Added");
+        return m && t && t.v ? { v: Math.round(1000 * m.v / t.v) / 10, p: yr } : null;
+      } },
+    { key: "unemp", label: "Unemployment rate", unit: "%", better: "low", group: "Jobs and prices", src: "MoSPI PLFS",
+      get: (n) => pick(by.get(n) || [], (r) => r.ind === "Unemployment rate"), india: india.unemp },
+    { key: "lfpr", label: "Labour force participation", unit: "%", better: "high", group: "Jobs and prices", src: "MoSPI PLFS",
+      get: (n) => pick(by.get(n) || [], (r) => r.ind === "Labour force participation rate"), india: india.lfpr },
+    { key: "cpi", label: "CPI inflation", unit: "%", better: "low", group: "Jobs and prices", src: "MoSPI CPI",
+      get: (n) => pick(by.get(n) || [], (r) => r.ind === "CPI inflation (y/y)" && r.seg === "CPI (General)"), india: india.cpi },
+    hdMetric("poverty", "Multidimensional poverty", /^Multidimensional Poverty/, "low"),
+    hdMetric("stunting", "Child stunting", /^Stunting/, "low"),
+    hdMetric("anaemia", "Anaemia among women", /^Anaemia \(Women\)/, "low"),
+    hdMetric("sanitation", "Improved sanitation", /^Improved Sanitation/, "high"),
+    hdMetric("fuel", "Clean cooking fuel", /^Clean Fuel/, "high"),
+    hdMetric("internet", "Internet use", /^Internet Use/, "high"),
+    hdMetric("phone", "Women owning a mobile phone", /^Own Mobile Phone \(Women\)/, "high"),
+  ];
+  const states = [...by.keys()].sort();
+  // ranks per metric (1 = best, or largest where direction is neutral)
+  const ranks = {};
+  for (const m of metrics) {
+    const vals = states.map((s) => [s, m.get(s)]).filter(([, x]) => x && x.v != null);
+    vals.sort((a, b) => m.better === "low" ? a[1].v - b[1].v : b[1].v - a[1].v);
+    ranks[m.key] = { n: vals.length, of: new Map(vals.map(([s], i) => [s, i + 1])) };
+  }
+  G.stateData = { states, by, metrics, ranks, india, hd, hdState };
+  return G.stateData;
+}
+const fmtMetric = (m, v) => v == null ? "–" : m.unit === "₹ crore" ? "₹" + fmt(Math.round(v / 1000) / 100) + " lakh cr" : m.unit === "₹" ? "₹" + fmt(Math.round(v)) : fmt(v) + (m.unit === "%" ? "%" : "");
+const pLabel = (p) => /^\d{4}-\d{2}$/.test(p) && +p.slice(5) <= 12 && !/^\d{4}-(1[3-9]|[2-9]\d)$/.test(p) && p.slice(0, 4) >= "2020" && /-(0\d|1[0-2])$/.test(p) && !/^\d{4}-\d{2}$/.test(p.replace(/-(0[1-9]|1[0-2])$/, "")) ? MON[+p.slice(5) - 1] + " " + p.slice(0, 4) : p;
+const ordinal = (n) => n + (n % 100 >= 11 && n % 100 <= 13 ? "th" : ["th", "st", "nd", "rd"][n % 10] || "th");
+const betterThan = (m, a, b) => m.better == null || a == null || b == null ? 0 : (m.better === "high" ? a - b : b - a);
+
+/* ---------- Rankings ---------- */
+async function showRankings(q) {
+  const S = await stateData();
+  V = { page: "rankings" };
+  const R = { m: q.get("m") || "growth", hl: q.get("s") || "", a: q.get("a") || "", b: q.get("b") || "" };
+  if (!S.metrics.find((m) => m.key === R.m)) R.m = "growth";
+  const save = () => { const p = new URLSearchParams({ m: R.m }); if (R.hl) p.set("s", R.hl); if (R.a) p.set("a", R.a); if (R.b) p.set("b", R.b); history.replaceState(null, "", "#/rankings?" + p); };
+  const main = el("section", { class: "card" }), side = el("aside", { class: "card" });
+  const stateOpts = (sel, blank) => [el("option", { value: "" }, blank), ...S.states.map((s) => el("option", { value: s, selected: s === sel }, s))];
+
+  function drawMain() {
+    const m = S.metrics.find((x) => x.key === R.m);
+    const sel = el("select", { "aria-label": "Indicator", onchange: (e) => { R.m = e.target.value; save(); drawMain(); } },
+      uniq(S.metrics.map((x) => x.group)).map((g) => el("optgroup", { label: g }, S.metrics.filter((x) => x.group === g).map((x) => el("option", { value: x.key, selected: x.key === R.m }, x.label)))));
+    const hl = el("select", { "aria-label": "Highlight a state", onchange: (e) => { R.hl = e.target.value; save(); drawMain(); } }, stateOpts(R.hl, "None"));
+    const items = S.states.map((s) => ({ s, x: m.get(s) })).filter((o) => o.x && o.x.v != null)
+      .sort((a, b) => m.better === "low" ? a.x.v - b.x.v : b.x.v - a.x.v)
+      .map((o, i) => ({ label: (i + 1) + ". " + o.s, v: m.unit === "₹ crore" ? Math.round(o.x.v / 1000) / 100 : o.x.v, hl: o.s === R.hl, p: o.x.p, state: o.s }));
+    const unitTxt = m.unit === "₹ crore" ? "₹ lakh crore" : m.unit;
+    const periods = uniq(items.map((i) => i.p)).sort();
+    const chartEl = hdBars(items, { name: m.label }, "mean", m.india ? m.india.v : null);
+    const dir = m.better === "low" ? "Lower is better, so the lowest is ranked first." : m.better === "high" ? "Higher is better, so the highest is ranked first." : "Ranked from highest to lowest.";
+    const title = m.label + " (" + unitTxt + ") · States · " + (periods.length === 1 ? periods[0] : periods[0] + " to " + periods[periods.length - 1]);
+    const cite = "Source: " + m.src + ". India Master Tracker rankings.";
+    chartEl.addEventListener("click", (e) => { const t = e.target.closest("rect"); if (!t) return; const s = t.querySelector("title").textContent.split(":")[0].replace(/^\d+\.\s*/, ""); location.hash = "#/state?n=" + encodeURIComponent(s); });
+    main.replaceChildren(el("div", { class: "card-h" }, el("h2", null, "State rankings"), el("span", { class: "muted" }, items.length + " states and union territories")),
+      el("div", { class: "filters" }, el("div", { class: "f" }, "Indicator", sel), el("div", { class: "f" }, "Highlight", hl)),
+      el("p", { class: "muted count" }, title + ". " + dir + (m.india ? " Dashed line: India" + (m.india.note ? " (" + m.india.note + ")" : "") + "." : "") + (periods.length > 1 ? " Latest year differs by state." : "")),
+      chartEl,
+      el("div", { class: "tfoot" }, el("span", { class: "muted" }, "Click a bar to open that state's profile."), el("div", { class: "actions" }, chartButtonsFor(chartEl, title, cite))),
+      el("p", { class: "cite" }, cite + (m.group.startsWith("Human") ? " Rural village averages from model estimates, not official NFHS state figures." : "")));
+  }
+
+  function drawSide() {
+    const a = el("select", { "aria-label": "First state", onchange: (e) => { R.a = e.target.value; save(); drawSide(); } }, stateOpts(R.a, "Choose a state"));
+    const b = el("select", { "aria-label": "Second state", onchange: (e) => { R.b = e.target.value; save(); drawSide(); } }, stateOpts(R.b, "Choose a state"));
+    side.replaceChildren(el("div", { class: "card-h" }, el("h2", null, "Compare two states")), el("div", { class: "cmp-pick" }, a, el("span", { class: "muted" }, "vs"), b));
+    if (!R.a || !R.b) { side.append(el("p", { class: "muted" }, "Pick two states to see every ranked indicator side by side, with each state's rank and India's figure.")); return; }
+    const tb = el("tbody");
+    let group = "";
+    for (const m of S.metrics) {
+      if (m.group !== group) { group = m.group; tb.append(el("tr", { class: "grp" }, el("td", { colspan: 4 }, group))); }
+      const xa = m.get(R.a), xb = m.get(R.b), ra = S.ranks[m.key].of.get(R.a), rb = S.ranks[m.key].of.get(R.b);
+      const d = betterThan(m, xa && xa.v, xb && xb.v);
+      const cell = (x, r, win) => el("td", { class: "n" + (win ? " win" : "") }, el("b", null, fmtMetric(m, x && x.v)), r ? el("small", null, ordinal(r) + " of " + S.ranks[m.key].n) : null);
+      tb.append(el("tr", { onclick: () => { R.m = m.key; save(); drawMain(); }, title: "Rank all states on this" },
+        el("td", null, m.label), cell(xa, ra, d > 0), cell(xb, rb, d < 0), el("td", { class: "n muted" }, m.india ? fmtMetric(m, m.india.v) : "–")));
+    }
+    side.append(el("div", { class: "tablebox" }, el("table", { class: "cmp" }, el("thead", null, el("tr", null, el("th", null, ""), el("th", { class: "n" }, R.a), el("th", { class: "n" }, R.b), el("th", { class: "n" }, "India"))), tb)),
+      el("p", { class: "cite" }, "Highlighted: the better of the two where the direction is clear. Click a row to rank all states on it."),
+      el("div", { class: "actions" }, el("a", { class: "more", href: "#/state?n=" + encodeURIComponent(R.a) }, R.a + " profile →"), el("a", { class: "more", href: "#/state?n=" + encodeURIComponent(R.b) }, R.b + " profile →")));
+  }
+
+  document.getElementById("app").replaceChildren(el("h1", null, "State rankings"),
+    el("p", { class: "lede" }, "Rank every state on growth, income, jobs, prices and human development, and compare any two side by side."),
+    el("div", { class: "grid" }, main, side));
+  save(); drawMain(); drawSide();
+}
+
+/* ---------- State profile ---------- */
+async function showStateProfile(q) {
+  const S = await stateData();
+  V = { page: "state" };
+  const name = S.states.includes(q.get("n")) ? q.get("n") : (S.states.includes("Tamil Nadu") ? "Tamil Nadu" : S.states[0]);
+  history.replaceState(null, "", "#/state?n=" + encodeURIComponent(name));
+  const rows = S.by.get(name) || [];
+  const M = (k) => S.metrics.find((m) => m.key === k);
+  const rk = (k) => S.ranks[k].of.get(name);
+  const sel = el("select", { "aria-label": "State", class: "state-pick", onchange: (e) => { location.hash = "#/state?n=" + encodeURIComponent(e.target.value); } },
+    S.states.map((s) => el("option", { value: s, selected: s === name }, s)));
+
+  // headline tiles
+  const tile = (k, extra) => {
+    const m = M(k), x = m.get(name); if (!x) return null;
+    const r = rk(k);
+    return el("a", { class: "tile", href: "#/rankings?m=" + k + "&s=" + encodeURIComponent(name), title: "See all states ranked" },
+      el("b", null, fmtMetric(m, x.v)), el("span", null, m.label), el("small", null, pLabel(x.p) + (r ? " · " + ordinal(r) + " of " + S.ranks[k].n : "") + (extra ? " · " + extra(x) : "")));
+  };
+  const vsIndia = (k) => (x) => { const m = M(k); return m.india ? "India " + fmtMetric(m, m.india.v) : ""; };
+  const tiles = el("section", { class: "tiles" }, [tile("gsdp"), tile("growth", vsIndia("growth")), tile("pcnsdp"), tile("unemp", vsIndia("unemp")), tile("cpi", vsIndia("cpi")), tile("mfg")].filter(Boolean));
+
+  // growth over time: state vs India
+  const g = rows.filter((r) => r.ind === "GSDP Growth Rate (constant prices)");
+  const periods = uniq(g.map((r) => r.p)).sort().slice(-10);
+  const series = [{ geo: name, seg: "", ind: "GSDP growth, real", unit: "%", ds: "gsdp", vals: Object.fromEntries(g.map((r) => [r.p, r.v])) }];
+  const ig = (await loadPage("macro")).filter((r) => /GDP Growth Rate \(constant/.test(r.ind) && r.f === "Annual");
+  if (ig.length) series.push({ geo: "India (GDP, 2022-23 base)", seg: "", ind: "GSDP growth, real", unit: "%", ds: "nas", vals: Object.fromEntries(ig.map((r) => [r.p, r.v])) });
+  const growthChart = chart(periods, series, "Annual");
+  const growthCard = el("section", { class: "card" }, el("div", { class: "card-h" }, el("h2", null, "Growth over time"), el("span", { class: "muted" }, "Real GSDP growth, %")), growthChart || el("p", { class: "muted" }, "No growth series for this state."),
+    growthChart ? el("div", { class: "tfoot" }, el("span", { class: "cite" }, "State series on a 2011-12 base; India's GDP on 2022-23, so compare direction rather than levels."), el("div", { class: "actions" }, chartButtonsFor(growthChart, name + ": real GSDP growth (%)", "Source: MoSPI state and national accounts."))) : null);
+
+  // economy structure: GSVA shares, latest year
+  const gv = rows.filter((r) => r.ind === "Gross State Value Added (current prices)");
+  const yr = (latestOf(gv.filter((r) => r.seg === "Manufacturing")) || {}).p;
+  const tot = (gv.find((r) => r.p === yr && r.seg === "Total Gross State Value Added") || {}).v;
+  const shares = gv.filter((r) => r.p === yr && r.seg !== "Total Gross State Value Added" && tot).map((r) => ({ label: r.seg.replace(/, Ownership of Dwelling & Professional Services/, " & professional").replace(/Transport, Storage, Communication & Services Related to Broadcasting/, "Transport & communication").replace(/Electricity, Gas, Water Supply & Other Utility Services/, "Utilities").replace(/Agriculture, Livestock, Forestry and Fishing/, "Agriculture"), v: Math.round(1000 * r.v / tot) / 10 })).sort((a, b) => b.v - a.v);
+  const structChart = shares.length ? hdBars(shares, { name: "Share of GSVA" }, "mean", null) : null;
+  const structCard = el("section", { class: "card" }, el("div", { class: "card-h" }, el("h2", null, "What the economy is made of"), el("span", { class: "muted" }, "Share of GSVA, " + (yr || "") + ", %")), structChart || el("p", { class: "muted" }, "No industry breakdown for this state."),
+    structChart ? el("div", { class: "tfoot" }, el("span", null), el("div", { class: "actions" }, chartButtonsFor(structChart, name + ": share of gross state value added by industry, " + yr + " (%)", "Source: MoSPI state accounts, current prices."))) : null);
+
+  // human development
+  const hdList = el("ul", { class: "hd-prof" });
+  for (const m of S.metrics.filter((x) => x.group.startsWith("Human"))) {
+    const x = m.get(name); if (!x) continue;
+    const d = betterThan(m, x.v, m.india && m.india.v);
+    hdList.append(el("li", { onclick: () => { location.hash = "#/rankings?m=" + m.key + "&s=" + encodeURIComponent(name); } }, el("span", { class: "n" }, m.label),
+      el("b", { class: d > 0 ? "good" : d < 0 ? "bad" : "" }, fmtMetric(m, x.v)), el("small", null, "India " + fmtMetric(m, m.india && m.india.v) + " · " + ordinal(rk(m.key)) + " of " + S.ranks[m.key].n)));
+  }
+  const hdS = S.hdState.get(normState(name));
+  const hdCard = el("section", { class: "card" }, el("div", { class: "card-h" }, el("h2", null, "Human development"), el("span", { class: "muted" }, "Rural, 2021")),
+    hdList.children.length ? hdList : el("p", { class: "muted" }, "No estimates for this state."),
+    el("p", { class: "cite" }, "Green: better than India. Harvard India Policy Insights village estimates. ", hdS ? el("a", { href: "#/hd?lvl=d&st=" + hdS.id }, "Rank this state's districts →") : null));
+
+  // developments and picks
+  const nn = normState(name);
+  const news = G.news.items.filter((r) => r.states.some((s) => normState(s) === nn)).slice(0, 8);
+  await loadPicks();
+  const picks = ((G.picks && G.picks.items) || []).filter((r) => normState(r.title).includes(nn)).slice(0, 6);
+  const side = el("aside", { class: "card" },
+    el("div", { class: "card-h" }, el("h2", null, "Developments"), el("span", { class: "muted" }, news.length ? "Tagged to " + name : "")),
+    news.length ? el("ul", { class: "news flat" }, news.map((r) => el("li", null, el("a", { href: r.url, target: "_blank", rel: "noopener" }, tidy(r.title)), el("small", null, dateLabel(r.date) + " · " + r.publisher)))) : el("p", { class: "muted" }, "No recent developments tagged to this state."),
+    el("h3", { class: "sec-h" }, "In your daily picks"),
+    picks.length ? el("ul", { class: "news flat" }, picks.map(pickLine)) : el("p", { class: "muted" }, "No picked articles mention " + name + "."),
+    el("div", { class: "card-f" }, el("a", { class: "more", href: "#/states?focus=" + encodeURIComponent(name) }, "All data for " + name), el("a", { class: "more", href: "#/rankings?a=" + encodeURIComponent(name) }, "Compare →")));
+
+  document.getElementById("app").replaceChildren(
+    el("div", { class: "home-h" }, el("h1", null, name), el("div", { class: "f inline" }, "Switch state", sel)),
+    el("p", { class: "lede" }, "Economy, jobs, prices and human development for " + name + ", with its rank among states and recent developments."),
+    tiles,
+    el("div", { class: "grid" }, el("div", { class: "stack" }, growthCard, structCard, hdCard), side));
+}
+
+/* ---------- Chart of the day: a short, data-written story on the Dashboard ---------- */
+const sinceLabel = (series, i, higher) => {
+  // the most recent earlier point at least as extreme as series[i]
+  for (let k = i - 1; k >= 0; k--) if (higher ? series[k].v >= series[i].v : series[k].v <= series[i].v) return series[k];
+  return null;
+};
+async function buildStories() {
+  const macro = await loadPage("macro");
+  const out = [];
+  const ser = (test, rows) => (rows || macro).filter(test).sort((a, b) => a.p < b.p ? -1 : 1);
+  // 1. CPI inflation
+  const cpi = ser((r) => r.ind.startsWith("CPI inflation") && r.seg === "CPI (General)" && r.geo === "All India");
+  if (cpi.length > 3) {
+    const i = cpi.length - 1, l = cpi[i], p = cpi[i - 1], hi = sinceLabel(cpi, i, true), lo = sinceLabel(cpi, i, false);
+    const ext = l.v > p.v ? (hi ? "the highest since " + periodLabel(hi.p, "Monthly") : "the highest in this series") : (lo ? "the lowest since " + periodLabel(lo.p, "Monthly") : "the lowest in this series");
+    out.push({ kicker: "Prices", rows: cpi.slice(-12), unit: "%", page: "macro", preset: "CPI inflation",
+      title: "Retail inflation " + (l.v > p.v ? "rose" : "eased") + " to " + fmt(l.v) + "% in " + periodLabel(l.p, "Monthly"),
+      text: "Consumer prices were " + fmt(l.v) + "% higher than a year earlier, " + (l.v > p.v ? "up" : "down") + " from " + fmt(p.v) + "% the month before and " + ext + ". RBI's tolerance band is 2% to 6%.",
+      src: "MoSPI, Consumer Price Index (base 2024)" });
+  }
+  // 2. Industrial production
+  const iip = ser((r) => r.ind.startsWith("IIP growth") && r.seg === "General");
+  if (iip.length > 6) {
+    const l = iip[iip.length - 1], avg = iip.slice(-13, -1).reduce((s, r) => s + r.v, 0) / Math.min(12, iip.length - 1);
+    out.push({ kicker: "Industry", rows: iip.slice(-12), unit: "%", page: "macro", preset: "IIP growth",
+      title: "Factory output grew " + fmt(l.v) + "% in " + periodLabel(l.p, "Monthly"),
+      text: "Industrial production was " + fmt(l.v) + "% higher than a year earlier, " + (l.v > avg ? "above" : "below") + " its 12-month average of " + fmt(Math.round(avg * 10) / 10) + "%.",
+      src: "MoSPI, Index of Industrial Production" });
+  }
+  // 3. Fastest-growing state
+  const st = await loadPage("states");
+  const gr = st.filter((r) => r.ind === "GSDP Growth Rate (constant prices)" && r.geo !== "All India");
+  const yrs = uniq(gr.map((r) => r.p)).sort();
+  const yr = yrs.find((y, k) => gr.filter((r) => r.p === yrs[yrs.length - 1 - k]).length >= 20) ? yrs.slice().reverse().find((y) => gr.filter((r) => r.p === y).length >= 20) : null;
+  if (yr) {
+    const ranked = gr.filter((r) => r.p === yr).sort((a, b) => b.v - a.v);
+    const top = ranked.slice(0, 8).map((r) => ({ geo: r.geo, v: r.v }));
+    out.push({ kicker: "States", bars: top.map((r) => ({ label: r.geo, v: r.v })), unit: "%", page: "rankings", href: "#/rankings?m=growth",
+      title: ranked[0].geo + " grew fastest in " + yr,
+      text: ranked[0].geo + "'s economy grew " + fmt(ranked[0].v) + "% in real terms in " + yr + ", ahead of " + ranked[1].geo + " (" + fmt(ranked[1].v) + "%) and " + ranked[2].geo + " (" + fmt(ranked[2].v) + "%). " + ranked.length + " states reported for that year.",
+      src: "MoSPI, state domestic product (base 2011-12)" });
+  }
+  // 4. Rural consumer confidence
+  try {
+    const sv = await loadPage("surveys");
+    const csi = ser((r) => r.ds === "ccs_rural" && r.ind === "Current Situation Index", sv);
+    if (csi.length > 3) {
+      const i = csi.length - 1, l = csi[i], yAgo = csi[Math.max(0, i - 6)], lo = sinceLabel(csi, i, false);
+      out.push({ kicker: "Households", rows: csi, unit: "", page: "surveys", preset: "Rural confidence indices",
+        title: "Rural households feel worse off than a year ago",
+        text: "RBI's rural current situation index was " + fmt(l.v) + " in " + periodLabel(l.p, "Monthly") + ", down from " + fmt(yAgo.v) + " a year earlier and " + (lo ? "the lowest since " + periodLabel(lo.p, "Monthly") : "the lowest in this series") + ". Below 100 means more households say things have worsened than improved.",
+        src: "RBI, Rural Consumer Confidence Survey" });
+      if (l.v >= yAgo.v) out[out.length - 1].title = "Rural households feel better off than a year ago";
+    }
+  } catch (e) { /* surveys not available */ }
+  return out;
+}
+function storyChart(s) {
+  if (s.bars) return hdBars(s.bars, { name: s.title }, "mean", null);
+  const periods = s.rows.map((r) => r.p);
+  return chart(periods, [{ geo: s.kicker, seg: "", ind: s.title, unit: s.unit, ds: s.rows[0].ds, vals: Object.fromEntries(s.rows.map((r) => [r.p, r.v])) }], s.rows[0].f || "Monthly");
+}
+async function storyCard() {
+  const stories = await buildStories();
+  if (!stories.length) return null;
+  const day = Math.floor(Date.now() / 864e5);
+  let k = day % stories.length;
+  const card = el("section", { class: "card story", "aria-label": "Chart of the day" });
+  const draw = () => {
+    const s = stories[k];
+    const c = storyChart(s);
+    const href = s.href || "#/" + s.page;
+    card.replaceChildren(
+      el("div", { class: "story-text" },
+        el("div", { class: "story-kick" }, el("span", null, "Chart of the day · " + s.kicker), el("span", { class: "story-nav" },
+          el("button", { type: "button", "aria-label": "Previous chart", onclick: () => { k = (k - 1 + stories.length) % stories.length; draw(); } }, "‹"),
+          el("span", { class: "muted" }, (k + 1) + " / " + stories.length),
+          el("button", { type: "button", "aria-label": "Next chart", onclick: () => { k = (k + 1) % stories.length; draw(); } }, "›"))),
+        el("h2", null, s.title), el("p", null, s.text),
+        el("p", { class: "cite" }, "Source: " + s.src + "."),
+        el("div", { class: "actions" }, el("a", { class: "more", href, onclick: () => { if (s.preset) G.pendingPreset = s.preset; } }, "Explore the data →"), c ? chartButtonsFor(c, s.title, "Source: " + s.src + ".") : null)),
+      el("div", { class: "story-chart" }, c));
+  };
+  draw();
+  return card;
+}
+
 /* ---------- "Sectors" dropdown in the tab bar ---------- */
 const SECTOR_KEYS = Object.keys(PAGES).filter((k) => k !== "macro" && k !== "states" && !PAGES[k].nonSector);
 function closeSectors() {
@@ -1536,10 +1828,10 @@ document.getElementById("nav").addEventListener("scroll", () => { if (Date.now()
 async function route() {
   peekStop();
   const { page, q } = readHash();
-  const name = PAGES[page] || ["sources", "daily", "dashboard", "editor", "hd"].includes(page) ? page : "dashboard";
+  const name = PAGES[page] || ["sources", "daily", "dashboard", "editor", "hd", "rankings", "state"].includes(page) ? page : "dashboard";
   closeSectors();
   document.querySelectorAll("nav a, .sec-menu a").forEach((a) => {
-    if (a.dataset.p === name) a.setAttribute("aria-current", "page");
+    if (a.dataset.p === name || (a.dataset.p === "states" && (name === "state" || name === "rankings"))) a.setAttribute("aria-current", "page");
     else a.removeAttribute("aria-current");
   });
   const sb = document.getElementById("sectors-btn");
@@ -1551,6 +1843,8 @@ async function route() {
     else if (name === "daily") { await loadPicks(); showDaily(q); }
     else if (name === "editor") { await loadPicks(); showEditor(); }
     else if (name === "hd") await showHd(q);
+    else if (name === "rankings") await showRankings(q);
+    else if (name === "state") await showStateProfile(q);
     else if (name === "dashboard") { await loadPicks(); await showHome(); peekStart(); }
     else await showData(name, q);
   } catch (e) {
