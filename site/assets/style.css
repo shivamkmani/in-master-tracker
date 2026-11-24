@@ -275,3 +275,19 @@ a.entry:hover,.entry:focus-within{transform:translateY(-2px);box-shadow:0 12px 2
 .crumbs a{text-decoration:none}
 .crumbs a:hover{text-decoration:underline}
 @media (max-width:900px){.entry-panels{grid-template-columns:1fr}.entry{flex-direction:column;align-items:flex-start}.entry-do{width:100%;flex-wrap:wrap}.entry-do select{flex:1;min-width:0}}
+/* data pages and state profiles: figures | chart and table | developments */
+.page3{display:grid;grid-template-columns:220px minmax(0,1fr) 340px;gap:20px;align-items:start;margin:4px 0 32px}
+.page3.no-rail{grid-template-columns:minmax(0,1fr) 360px}
+.page3 .center,.page3 .rail,.page3 .rail-r{min-width:0}
+.page3 .rail .tiles{grid-template-columns:1fr;margin:0;gap:10px}
+.page3 .rail .tile{padding:11px 13px}
+.page3 .rail .tile b{font-size:21px}
+@media (max-width:1250px){.page3{grid-template-columns:minmax(0,1fr) 340px}.page3 .rail{grid-column:1/-1}.page3 .rail .tiles{grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}}
+@media (max-width:900px){.page3,.page3.no-rail{grid-template-columns:1fr}.page3 .center{order:-1}.page3 .rail{order:2}.page3 .rail .tiles{grid-template-columns:1fr 1fr}}
+/* remove controls */
+.x-col{width:28px;padding-left:4px!important;padding-right:0!important}
+button.x-mini{border:0;background:none;min-height:0;padding:0 4px;font-size:12px;line-height:1.4;color:var(--ink3);border-radius:4px;cursor:pointer;opacity:.55}
+tr:hover button.x-mini,.legend span:hover button.x-mini,button.x-mini:focus-visible{opacity:1}
+button.x-mini:hover{color:var(--bad);background:var(--line2)}
+.legend span{display:inline-flex;align-items:center;gap:2px}
+.hidden-note{font-size:13px;color:var(--ink2);margin:0 0 8px}

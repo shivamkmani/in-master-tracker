@@ -278,6 +278,7 @@ function applyPreset(p) {
     s.geo = has ? [G.focus, "All India"].filter((g) => base.some((r) => r.geo === g)) : [];
   }
   V.sort = null;
+  if (V.hidden) V.hidden.clear();
 }
 
 function pivot() {
@@ -291,10 +292,13 @@ function pivot() {
     if (!keep.has(r.p)) continue;
     const k = [r.geo, r.seg, r.ind, r.unit, r.ds].join("\u0001");
     let o = map.get(k);
-    if (!o) { o = { geo: r.geo, seg: r.seg, ind: r.ind, unit: r.unit, ds: r.ds, vals: {} }; map.set(k, o); }
+    if (!o) { o = { key: k, geo: r.geo, seg: r.seg, ind: r.ind, unit: r.unit, ds: r.ds, vals: {} }; map.set(k, o); }
     o.vals[r.p] = r.v;
   }
-  const out = [...map.values()];
+  // Rows the user removed stay out of the table, the chart and the exports.
+  const all = [...map.values()];
+  const out = all.filter((o) => !(V.hidden && V.hidden.has(o.key)));
+  const hiddenCount = all.length - out.length;
   const last = periods[periods.length - 1];
   const col = V.sort ? V.sort.col : last;
   const dir = V.sort ? V.sort.dir : -1;
@@ -305,7 +309,7 @@ function pivot() {
     if (y == null) return -1;
     return dir * (x - y);
   });
-  return { periods, rows: out };
+  return { periods, rows: out, hiddenCount };
 }
 
 /* Hide columns where every visible row has the same value. */
@@ -416,7 +420,7 @@ document.addEventListener("keydown", (e) => { if (e.key === "Escape") closePops(
 const dsName = (d) => (G.meta.datasets[d] || {}).title || d;
 
 /* ---------- line chart: one axis, so it only draws a single unit ---------- */
-function chart(periods, rows, f) {
+function chart(periods, rows, f, onRemove) {
   const units = uniq(rows.map((r) => r.unit));
   if (periods.length < 2 || !rows.length) return null;
   if (units.length > 1) return el("p", { class: "cite" }, "Chart hidden: this table mixes units. Pick one indicator to chart it.");
@@ -466,7 +470,8 @@ function chart(periods, rows, f) {
   svg.append(hair);
   const tip = el("div", { class: "tip", hidden: true });
   const wrap = el("div", { class: "chart" });
-  const legend = el("div", { class: "legend" }, series.length > 1 ? series.map((q) => el("span", null, el("i", { style: "background:" + q.color }), q.name)) : []);
+  const legend = el("div", { class: "legend" }, series.length > 1 || onRemove ? series.map((q, i) => el("span", null, el("i", { style: "background:" + q.color }), q.name,
+    onRemove ? el("button", { type: "button", class: "x-mini", title: "Remove from chart and table", "aria-label": "Remove " + q.name, onclick: () => onRemove(rows[i]) }, "✕") : null)) : []);
   if (rows.length > MAX_SERIES) legend.append(el("span", null, "Top " + MAX_SERIES + " of " + rows.length + " rows"));
   svg.addEventListener("pointermove", (e) => {
     const b = svg.getBoundingClientRect();
@@ -576,22 +581,26 @@ function renderBuilder() {
     el("div", { class: "f" }, "Frequency", freqSel),
     multiSelect("geo", "Geography"), multiSelect("seg", "Segment"), multiSelect("ind", "Indicator"), multiSelect("ds", "Dataset"),
     el("div", { class: "f" }, "Periods", spanSel),
-    el("button", { type: "button", onclick: () => { s.geo = []; s.seg = []; s.ind = []; s.ds = []; V.preset = null; V.sort = null; renderBuilder(); } }, "Reset"));
+    el("button", { type: "button", onclick: () => { s.geo = []; s.seg = []; s.ind = []; s.ds = []; V.preset = null; V.sort = null; V.hidden.clear(); renderBuilder(); } }, "Reset"));
 
-  const { periods, rows } = pivot();
+  const { periods, rows, hiddenCount } = pivot();
   host.append(el("div", { class: "card-h" }, el("h2", null, "Build a table")), presets, filters);
+  const removeRow = (r) => { V.hidden.add(r.key); renderBuilder(); };
+  if (hiddenCount) host.append(el("p", { class: "hidden-note" }, hiddenCount + (hiddenCount === 1 ? " row removed. " : " rows removed. "),
+    el("button", { type: "button", class: "link", onclick: () => { V.hidden.clear(); renderBuilder(); } }, "Show all")));
   if (!rows.length) {
     host.append(el("p", { class: "empty" }, "No data for this combination. " + (G.focus ? G.focus + " may not be covered by this dataset. " : "") + "Try removing a filter."));
     return;
   }
-  const c = chart(periods, rows, s.freq);
+  const c = chart(periods, rows, s.freq, rows.length > 1 ? removeRow : null);
   if (c) host.append(c);
 
   const cols = labelCols(rows);
-  const head = el("tr", null, cols.map(([k, t]) => el("th", {
+  const head = el("tr", null, el("th", { class: "x-col", "aria-label": "Remove" }), cols.map(([k, t]) => el("th", {
     onclick: k === "unit" ? null : () => sortBy(k),
   }, t + arrow(k))), periods.map((p) => el("th", { class: "n", onclick: () => sortBy(p) }, periodLabel(p, s.freq) + arrow(p))));
   const body = el("tbody", null, rows.slice(0, MAX_ROWS).map((r) => el("tr", null,
+    el("td", { class: "x-col" }, el("button", { type: "button", class: "x-mini", title: "Remove this row", "aria-label": "Remove row " + [r.geo, r.seg, r.ind].join(" "), onclick: () => removeRow(r) }, "✕")),
     cols.map(([k]) => el("td", { class: k === "seg" || k === "ind" ? "seg" : "" }, r[k])),
     periods.map((p) => el("td", { class: "n" }, r.vals[p] == null ? "–" : fmt(r.vals[p]))))));
   host.append(el("div", { class: "tablebox" }, el("table", null, el("thead", null, head), body)));
@@ -797,7 +806,7 @@ async function showData(page, q) {
   const rows = await loadPage(page);
   if (q.get("focus") !== null) G.focus = q.get("focus");
   const freqs = uniq(rows.map((r) => r.f));
-  V = { page, rows, preset: null, sort: null, dirty: false, sel: { freq: freqs[0], span: 12, ds: [], geo: [], seg: [], ind: [] }, news: { scope: "All", src: "All", q: "", days: 30 } };
+  V = { page, rows, preset: null, sort: null, dirty: false, hidden: new Set(), sel: { freq: freqs[0], span: 12, ds: [], geo: [], seg: [], ind: [] }, news: { scope: "All", src: "All", q: "", days: 30 } };
   if (q.get("freq")) {
     const s = V.sel;
     s.freq = q.get("freq"); s.span = +(q.get("span") ?? 12);
@@ -823,10 +832,11 @@ async function showData(page, q) {
     el("h1", null, P.label), el("p", { class: "lede" }, P.lede),
     P.caveat ? el("p", { class: "caveat" }, P.caveat) : null,
     page === "states" ? stateEntryPanels() : null,
-    page === "macro" ? tiles(rows, false) : P.tiles ? tiles(rows, false, P.tiles, page) : null,
-    P.nonSector ? null : el("div", { class: "focus" }, el("label", { htmlFor: "focus" }, "Focus state"), focusSel,
-      null),
-    el("div", { class: "grid" }, V.builder, V.newsHost),
+    P.nonSector ? null : el("div", { class: "focus" }, el("label", { htmlFor: "focus" }, "Focus state"), focusSel),
+    // Chart and table in the centre; headline figures left, developments right.
+    ((tl) => el("div", { class: "page3" + (tl ? "" : " no-rail") }, tl ? el("div", { class: "rail" }, tl) : null,
+      el("div", { class: "center" }, V.builder), el("div", { class: "rail-r" }, V.newsHost)))(
+      page === "macro" ? tiles(rows, false) : P.tiles ? tiles(rows, false, P.tiles, page) : null),
   ].filter(Boolean));
   renderBuilder(); renderNews();
 }
@@ -1316,7 +1326,7 @@ function hdBars(items, ind, metric, indiaVal) {
     const y = T + i * rowH;
     svg.append(s("text", { x: L - 8, y: y + 14, "text-anchor": "end", "font-size": 12, fill: "var(--ink2)" }, it.label.length > 34 ? it.label.slice(0, 33) + "…" : it.label));
     if (it.v == null) { if (!it.gap) svg.append(s("text", { x: L + 4, y: y + 14, "font-size": 11, fill: "var(--ink3)" }, "no estimate")); return; }
-    const bar = s("rect", { x: L, y: y + 3, width: Math.max(1, x(it.v) - L), height: rowH - 6, rx: 2, fill: it.hl ? "var(--s2)" : "var(--s1)", class: "grow", style: "animation-delay:" + Math.min(i * 18, 500) + "ms" });
+    const bar = s("rect", { x: L, y: y + 3, width: Math.max(1, x(it.v) - L), height: rowH - 6, rx: 2, fill: it.hl ? (typeof it.hl === "string" ? it.hl : "var(--s2)") : "var(--s1)", class: "grow", style: "animation-delay:" + Math.min(i * 18, 500) + "ms" });
     bar.append(s("title", null, it.label + ": " + fmt(it.v)));
     svg.append(bar);
     svg.append(s("text", { x: x(it.v) + 5, y: y + 14, "font-size": 11, fill: "var(--ink2)" }, fmt(it.v)));
@@ -1339,7 +1349,7 @@ async function showHd(q) {
     return;
   }
   const inds = D.indicators, stateName = Object.fromEntries(D.states.map((s) => [s.id, s.name]));
-  const H = { ind: +(q.get("ind") ?? 0), lvl: q.get("lvl") || "s", st: q.get("st") || "", m: q.get("m") || "mean", all: false,
+  const H = { hide: new Set(), ind: +(q.get("ind") ?? 0), lvl: q.get("lvl") || "s", st: q.get("st") || "", m: q.get("m") || "mean", all: false,
     d: q.get("d") ? +q.get("d") : null, vq: "" };
   if (!(H.ind >= 0 && H.ind < inds.length)) H.ind = 0;
   const save = () => {
@@ -1384,7 +1394,15 @@ async function showHd(q) {
       el("div", { class: "filters" }, el("div", { class: "f" }, "Indicator", sel), el("div", { class: "f" }, "Show", lvl),
         H.lvl === "d" ? el("div", { class: "f" }, "Within", stSel) : null, el("div", { class: "f" }, "Measure", mSel)));
 
-    const { rows, m } = rankRows();
+    const ranked = rankRows();
+    const m = ranked.m;
+    const hk = (r) => H.lvl + ":" + r.id;  // hidden rows are kept per level (states vs districts)
+    const rowsMenu = checkMenu("Rows", ranked.rows.map((r) => ({ id: hk(r), label: r.label })), (id) => !H.hide.has(id),
+      (id, on) => { if (on) H.hide.delete(id); else H.hide.add(id); },
+      { summary: () => { const n = ranked.rows.filter((r) => H.hide.has(hk(r))).length; return n ? (ranked.rows.length - n) + " of " + ranked.rows.length + " shown" : "All shown"; },
+        onClear: () => H.hide.clear(), clearLabel: "Show all", redraw: drawMain });
+    main.querySelector(".filters").append(rowsMenu);
+    const rows = ranked.rows.filter((r) => !H.hide.has(hk(r)));
     const dirTxt = m === "sd" ? "Less variation first." : m === "met" ? "Highest share first." : ind.higher_better === false ? "Lower is better, so the lowest comes first." : ind.higher_better ? "Higher is better, so the highest comes first." : "";
     const LIMIT = 15;
     let shown = rows;
@@ -1561,13 +1579,48 @@ function stateEntryPanels() {
       el("div", { class: "entry-do" }, el("span", { class: "btn-like" }, "Open rankings →"))));
 }
 
+/* A button that opens a checkbox list (reuses the filter menu styles). */
+const HL_COLORS = ["var(--s2)", "var(--s3)", "var(--s4)", "var(--s5)", "var(--s6)"];
+function checkMenu(label, options, isOn, onToggle, opts = {}) {
+  const box = el("div", { class: "f" });
+  const on = options.filter((o) => isOn(o.id)).length;
+  const btn = el("button", { type: "button", class: "ms-btn", "aria-haspopup": "true", "aria-expanded": "false" }, opts.summary ? opts.summary(on) : on + " selected");
+  box.append(label, btn);
+  btn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const open = box.querySelector(".ms-pop");
+    closePops();
+    if (open) return;
+    const list = el("div", { class: "ms-list" });
+    const search = el("input", { type: "search", placeholder: "Search", "aria-label": "Search " + label });
+    const draw = () => {
+      list.replaceChildren();
+      const t = search.value.toLowerCase();
+      for (const o of options.filter((x) => x.label.toLowerCase().includes(t))) {
+        const cb = el("input", { type: "checkbox", checked: isOn(o.id) });
+        cb.addEventListener("change", () => onToggle(o.id, cb.checked));
+        list.append(el("label", null, cb, el("span", null, o.label)));
+      }
+    };
+    search.addEventListener("input", draw);
+    draw();
+    box.append(el("div", { class: "ms-pop", onclick: (ev) => ev.stopPropagation() }, search, list,
+      el("div", { class: "ms-foot" },
+        opts.onClear ? el("button", { type: "button", onclick: () => { opts.onClear(); closePops(); opts.redraw(); } }, opts.clearLabel || "Clear") : el("span"),
+        el("button", { type: "button", onclick: () => { closePops(); opts.redraw(); } }, "Done"))));
+    btn.setAttribute("aria-expanded", "true");
+    search.focus();
+  });
+  return box;
+}
+
 /* ---------- Rankings ---------- */
 async function showRankings(q) {
   const S = await stateData();
   V = { page: "rankings" };
-  const R = { m: q.get("m") || "growth", hl: q.get("s") || "", a: q.get("a") || "", b: q.get("b") || "" };
+  const R = { m: q.get("m") || "growth", hl: (q.get("s") || "").split("|").filter(Boolean), hide: new Set((q.get("x") || "").split("|").filter(Boolean)), a: q.get("a") || "", b: q.get("b") || "" };
   if (!S.metrics.find((m) => m.key === R.m)) R.m = "growth";
-  const save = () => { const p = new URLSearchParams({ m: R.m }); if (R.hl) p.set("s", R.hl); if (R.a) p.set("a", R.a); if (R.b) p.set("b", R.b); history.replaceState(null, "", "#/rankings?" + p); };
+  const save = () => { const p = new URLSearchParams({ m: R.m }); if (R.hl.length) p.set("s", R.hl.join("|")); if (R.hide.size) p.set("x", [...R.hide].join("|")); if (R.a) p.set("a", R.a); if (R.b) p.set("b", R.b); history.replaceState(null, "", "#/rankings?" + p); };
   const main = el("section", { class: "card" }), side = el("aside", { class: "card" });
   const stateOpts = (sel, blank) => [el("option", { value: "" }, blank), ...S.states.map((s) => el("option", { value: s, selected: s === sel }, s))];
 
@@ -1575,10 +1628,18 @@ async function showRankings(q) {
     const m = S.metrics.find((x) => x.key === R.m);
     const sel = el("select", { "aria-label": "Indicator", onchange: (e) => { R.m = e.target.value; save(); drawMain(); } },
       uniq(S.metrics.map((x) => x.group)).map((g) => el("optgroup", { label: g }, S.metrics.filter((x) => x.group === g).map((x) => el("option", { value: x.key, selected: x.key === R.m }, x.label)))));
-    const hl = el("select", { "aria-label": "Highlight a state", onchange: (e) => { R.hl = e.target.value; save(); drawMain(); } }, stateOpts(R.hl, "None"));
-    const items = S.states.map((s) => ({ s, x: m.get(s) })).filter((o) => o.x && o.x.v != null)
-      .sort((a, b) => m.better === "low" ? a.x.v - b.x.v : b.x.v - a.x.v)
-      .map((o, i) => ({ label: (i + 1) + ". " + o.s, v: m.unit === "₹ crore" ? Math.round(o.x.v / 1000) / 100 : o.x.v, hl: o.s === R.hl, p: o.x.p, state: o.s }));
+    const opts = S.states.map((s) => ({ id: s, label: s }));
+    const hl = checkMenu("Highlight", opts, (id) => R.hl.includes(id), (id, on) => {
+      R.hl = on ? [...R.hl, id].slice(-HL_COLORS.length) : R.hl.filter((x) => x !== id); save();
+    }, { summary: (n) => n ? n + " highlighted" : "None", onClear: () => { R.hl = []; save(); }, redraw: drawMain });
+    const rowsMenu = checkMenu("Rows", opts, (id) => !R.hide.has(id), (id, on) => {
+      if (on) R.hide.delete(id); else R.hide.add(id); save();
+    }, { summary: () => R.hide.size ? (S.states.length - R.hide.size) + " of " + S.states.length + " shown" : "All shown", onClear: () => { R.hide.clear(); save(); }, clearLabel: "Show all", redraw: drawMain });
+    const ranked = S.states.map((s) => ({ s, x: m.get(s) })).filter((o) => o.x && o.x.v != null)
+      .sort((a, b) => m.better === "low" ? a.x.v - b.x.v : b.x.v - a.x.v);
+    // Ranks are among all states; removed rows are only hidden from view.
+    const items = ranked.map((o, i) => ({ label: (i + 1) + ". " + o.s, v: m.unit === "₹ crore" ? Math.round(o.x.v / 1000) / 100 : o.x.v,
+      hl: R.hl.includes(o.s) ? HL_COLORS[R.hl.indexOf(o.s)] : false, p: o.x.p, state: o.s })).filter((it) => !R.hide.has(it.state));
     const unitTxt = m.unit === "₹ crore" ? "₹ lakh crore" : m.unit;
     const periods = uniq(items.map((i) => i.p)).sort();
     const chartEl = hdBars(items, { name: m.label }, "mean", m.india ? m.india.v : null);
@@ -1587,7 +1648,8 @@ async function showRankings(q) {
     const cite = "Source: " + m.src + ". India Dashboard rankings.";
     chartEl.addEventListener("click", (e) => { const t = e.target.closest("rect"); if (!t) return; const s = t.querySelector("title").textContent.split(":")[0].replace(/^\d+\.\s*/, ""); location.hash = "#/state?n=" + encodeURIComponent(s); });
     main.replaceChildren(el("div", { class: "card-h" }, el("h2", null, "State rankings"), el("span", { class: "muted" }, items.length + " states and union territories")),
-      el("div", { class: "filters" }, el("div", { class: "f" }, "Indicator", sel), el("div", { class: "f" }, "Highlight", hl)),
+      el("div", { class: "filters" }, el("div", { class: "f" }, "Indicator", sel), hl, rowsMenu,
+        R.hide.size ? el("button", { type: "button", onclick: () => { R.hide.clear(); save(); drawMain(); } }, "Show all states") : null),
       el("p", { class: "muted count" }, title + ". " + dir + (m.india ? " Dashed line: India" + (m.india.note ? " (" + m.india.note + ")" : "") + "." : "") + (periods.length > 1 ? " Latest year differs by state." : "")),
       chartEl,
       el("div", { class: "tfoot" }, el("span", { class: "muted" }, "Click a bar to open that state's profile."), el("div", { class: "actions" }, chartButtonsFor(chartEl, title, cite))),
@@ -1615,7 +1677,7 @@ async function showRankings(q) {
   }
 
   document.getElementById("app").replaceChildren(el("h1", null, "State rankings"),
-    el("div", { class: "crumbs" }, el("a", { href: "#/states" }, "← State data"), el("a", { href: "#/state" + (R.hl ? "?n=" + encodeURIComponent(R.hl) : "") }, "State profiles →")),
+    el("div", { class: "crumbs" }, el("a", { href: "#/states" }, "← State data"), el("a", { href: "#/state" + (R.hl.length ? "?n=" + encodeURIComponent(R.hl[0]) : "") }, "State profiles →")),
     el("p", { class: "lede" }, "Rank every state on growth, income, jobs, prices and human development, and compare any two side by side."),
     el("div", { class: "grid" }, main, side));
   save(); drawMain(); drawSide();
@@ -1691,8 +1753,8 @@ async function showStateProfile(q) {
     el("div", { class: "home-h" }, el("h1", null, name), el("div", { class: "f inline" }, "Switch state", sel)),
     el("div", { class: "crumbs" }, el("a", { href: "#/states?focus=" + encodeURIComponent(name) }, "← State data"), el("a", { href: "#/rankings?s=" + encodeURIComponent(name) + "&a=" + encodeURIComponent(name) }, "State rankings →")),
     el("p", { class: "lede" }, "Economy, jobs, prices and human development for " + name + ", with its rank among states and recent developments."),
-    tiles,
-    el("div", { class: "grid" }, el("div", { class: "stack" }, growthCard, structCard, hdCard), side));
+    el("div", { class: "page3" }, el("div", { class: "rail" }, tiles),
+      el("div", { class: "center stack" }, growthCard, structCard, hdCard), el("div", { class: "rail-r" }, side)));
 }
 
 /* ---------- Chart of the day: a short, data-written story on the Dashboard ---------- */
