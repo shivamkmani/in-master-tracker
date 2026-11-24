@@ -238,7 +238,6 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px var(--accent-soft)}
 /* state profile and rankings */
 .stack{display:grid;gap:20px;min-width:0}
 .state-pick{min-width:220px;font-size:15px}
-.focus-links{display:flex;gap:16px;margin-left:auto}
 .cmp-pick{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
 .cmp-pick select{flex:1;min-width:140px}
 table.cmp td small{display:block;color:var(--ink3);font-size:11px;font-weight:400}
@@ -263,3 +262,16 @@ table.cmp th.n,table.cmp td.n{white-space:normal}
 .story-kick{gap:10px;align-items:flex-start}
 @media (max-width:1250px){.dash{grid-template-columns:minmax(0,1fr) 360px}.dash-left{grid-column:1/-1}.dash-left .tiles{grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}}
 @media (max-width:860px){.dash{grid-template-columns:1fr}.dash-main{order:-1}.dash-left{order:2}.dash-left .tiles{grid-template-columns:1fr 1fr}}
+/* entry panels for state profiles and rankings */
+.entry-panels{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:18px 0 6px}
+.entry{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:16px 18px;border:1.5px solid var(--accent);border-radius:10px;background:var(--accent-soft);color:var(--ink);text-decoration:none;transition:transform .25s var(--ease-out),box-shadow .25s var(--ease-out)}
+a.entry:hover,.entry:focus-within{transform:translateY(-2px);box-shadow:0 12px 26px -14px var(--accent)}
+.entry b{display:block;font-size:17px;color:var(--accent)}
+.entry p{margin:4px 0 0;font-size:13.5px;color:var(--ink2);max-width:46ch}
+.entry-do{display:flex;gap:8px;align-items:center;flex:none}
+.entry-do select{min-width:170px}
+.btn-like{display:inline-block;background:var(--accent);color:#fff;font-weight:700;font-size:13px;padding:8px 16px;border-radius:6px;white-space:nowrap}
+.crumbs{display:flex;gap:18px;margin:2px 0 10px;font-size:14px;font-weight:600}
+.crumbs a{text-decoration:none}
+.crumbs a:hover{text-decoration:underline}
+@media (max-width:900px){.entry-panels{grid-template-columns:1fr}.entry{flex-direction:column;align-items:flex-start}.entry-do{width:100%;flex-wrap:wrap}.entry-do select{flex:1;min-width:0}}

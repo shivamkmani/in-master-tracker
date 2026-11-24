@@ -1,4 +1,4 @@
-/* India Tracker: static front end. All text from data files is set with
+/* India Dashboard: static front end. All text from data files is set with
    textContent, never innerHTML, because it originates from external sources. */
 "use strict";
 
@@ -526,7 +526,7 @@ async function chartPng(wrap, title, cite) {
     if (x + w > W && legendRows[legendRows.length - 1].length) { legendRows.push([]); x = 0; }
     legendRows[legendRows.length - 1].push({ q, x }); x += w;
   }
-  const citeLines = wrapText(cite + " Chart: India Master Tracker.", font(400, 11), W);
+  const citeLines = wrapText(cite + " Chart: India Dashboard.", font(400, 11), W);
   const legendH = series.length > 1 ? legendRows.length * 20 + 6 : 0;
   const FH = PAD + titleLines.length * 24 + 8 + legendH + H + 10 + citeLines.length * 15 + PAD;
   const c = document.createElement("canvas");
@@ -597,7 +597,7 @@ function renderBuilder() {
   host.append(el("div", { class: "tablebox" }, el("table", null, el("thead", null, head), body)));
 
   const cite = citation(rows);
-  const csv = el("button", { type: "button", onclick: () => download("india-tracker-" + V.page + ".csv", delimited(",")) }, "Download CSV");
+  const csv = el("button", { type: "button", onclick: () => download("india-dashboard-" + V.page + ".csv", delimited(",")) }, "Download CSV");
   const xl = el("button", { type: "button", onclick: (e) => copy(delimited("\t"), e.target) }, "Copy for Excel");
   const link = el("button", { type: "button", onclick: (e) => copy(location.href, e.target) }, "Copy link");
   const src = el("button", { type: "button", onclick: (e) => copy(cite, e.target) }, "Copy source line");
@@ -822,11 +822,10 @@ async function showData(page, q) {
   app.replaceChildren(...[
     el("h1", null, P.label), el("p", { class: "lede" }, P.lede),
     P.caveat ? el("p", { class: "caveat" }, P.caveat) : null,
+    page === "states" ? stateEntryPanels() : null,
     page === "macro" ? tiles(rows, false) : P.tiles ? tiles(rows, false, P.tiles, page) : null,
     P.nonSector ? null : el("div", { class: "focus" }, el("label", { htmlFor: "focus" }, "Focus state"), focusSel,
-      page === "states" ? el("span", { class: "focus-links" },
-        el("a", { class: "more", href: "#/state" + (G.focus ? "?n=" + encodeURIComponent(G.focus) : ""), onclick: (e) => { e.currentTarget.href = "#/state" + (G.focus ? "?n=" + encodeURIComponent(G.focus) : ""); } }, "State profile →"),
-        el("a", { class: "more", href: "#/rankings" }, "State rankings →")) : null),
+      null),
     el("div", { class: "grid" }, V.builder, V.newsHost),
   ].filter(Boolean));
   renderBuilder(); renderNews();
@@ -1266,7 +1265,7 @@ function editorSignIn(app) {
 
 /* Copy / Download buttons for any chart element carrying wrap._chart. */
 function chartButtonsFor(wrap, title, cite, name) {
-  name = name || "india-tracker-" + V.page + "-chart.png";
+  name = name || "india-dashboard-" + V.page + "-chart.png";
   const save = (blob) => {
     const a = el("a", { href: URL.createObjectURL(blob), download: name });
     a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
@@ -1403,7 +1402,7 @@ async function showHd(q) {
         el("div", { class: "actions" },
           rows.length > LIMIT * 2 ? el("button", { type: "button", onclick: () => { H.all = !H.all; drawMain(); } }, H.all ? "Best and worst only" : "Show all " + rows.length) : null,
           chartButtonsFor(chartEl, title, cite),
-          el("button", { type: "button", onclick: () => download("india-tracker-sdg-ranking.csv", csvText(",")) }, "Download CSV"),
+          el("button", { type: "button", onclick: () => download("india-dashboard-sdg-ranking.csv", csvText(",")) }, "Download CSV"),
           el("button", { type: "button", onclick: (e) => copy(csvText("\t"), e.target) }, "Copy for Excel"))),
       el("p", { class: "cite" }, cite + " " + D.source.note));
     if (H.lvl === "d") chartEl.addEventListener("click", (e) => {
@@ -1547,6 +1546,21 @@ const poss = (n) => n + (/s$/i.test(n) ? "'" : "'s");  // "Islands'", "Punjab's"
 const ordinal = (n) => n + (n % 100 >= 11 && n % 100 <= 13 ? "th" : ["th", "st", "nd", "rd"][n % 10] || "th");
 const betterThan = (m, a, b) => m.better == null || a == null || b == null ? 0 : (m.better === "high" ? a - b : b - a);
 
+/* Two clear ways into state profiles and rankings from the States page. */
+function stateEntryPanels() {
+  const states = uniq(((G.cache.states) || []).map((r) => r.geo)).filter((g) => g !== "All India").sort();
+  const pick = el("select", { "aria-label": "Choose a state for its profile" },
+    states.map((s) => el("option", { value: s, selected: s === (G.focus || "Tamil Nadu") }, s)));
+  const open = () => { location.hash = "#/state?n=" + encodeURIComponent(pick.value); };
+  return el("section", { class: "entry-panels", "aria-label": "State profiles and rankings" },
+    el("div", { class: "entry" },
+      el("div", null, el("b", null, "State profiles"), el("p", null, "One page per state: economy, jobs, prices, human development and the latest news, with its rank among states.")),
+      el("div", { class: "entry-do" }, pick, el("button", { type: "button", class: "primary", onclick: open }, "Open profile →"))),
+    el("a", { class: "entry", href: "#/rankings" + (G.focus ? "?s=" + encodeURIComponent(G.focus) : "") },
+      el("div", null, el("b", null, "State rankings"), el("p", null, "Rank every state on 14 indicators, from growth and income to jobs and human development, and compare any two.")),
+      el("div", { class: "entry-do" }, el("span", { class: "btn-like" }, "Open rankings →"))));
+}
+
 /* ---------- Rankings ---------- */
 async function showRankings(q) {
   const S = await stateData();
@@ -1570,7 +1584,7 @@ async function showRankings(q) {
     const chartEl = hdBars(items, { name: m.label }, "mean", m.india ? m.india.v : null);
     const dir = m.better === "low" ? "Lower is better, so the lowest is ranked first." : m.better === "high" ? "Higher is better, so the highest is ranked first." : "Ranked from highest to lowest.";
     const title = m.label + " (" + unitTxt + ") · States · " + (periods.length === 1 ? periods[0] : periods[0] + " to " + periods[periods.length - 1]);
-    const cite = "Source: " + m.src + ". India Master Tracker rankings.";
+    const cite = "Source: " + m.src + ". India Dashboard rankings.";
     chartEl.addEventListener("click", (e) => { const t = e.target.closest("rect"); if (!t) return; const s = t.querySelector("title").textContent.split(":")[0].replace(/^\d+\.\s*/, ""); location.hash = "#/state?n=" + encodeURIComponent(s); });
     main.replaceChildren(el("div", { class: "card-h" }, el("h2", null, "State rankings"), el("span", { class: "muted" }, items.length + " states and union territories")),
       el("div", { class: "filters" }, el("div", { class: "f" }, "Indicator", sel), el("div", { class: "f" }, "Highlight", hl)),
@@ -1601,6 +1615,7 @@ async function showRankings(q) {
   }
 
   document.getElementById("app").replaceChildren(el("h1", null, "State rankings"),
+    el("div", { class: "crumbs" }, el("a", { href: "#/states" }, "← State data"), el("a", { href: "#/state" + (R.hl ? "?n=" + encodeURIComponent(R.hl) : "") }, "State profiles →")),
     el("p", { class: "lede" }, "Rank every state on growth, income, jobs, prices and human development, and compare any two side by side."),
     el("div", { class: "grid" }, main, side));
   save(); drawMain(); drawSide();
@@ -1609,8 +1624,8 @@ async function showRankings(q) {
 /* ---------- State profile ---------- */
 async function showStateProfile(q) {
   const S = await stateData();
-  V = { page: "state" };
   const name = S.states.includes(q.get("n")) ? q.get("n") : (S.states.includes("Tamil Nadu") ? "Tamil Nadu" : S.states[0]);
+  V = { page: "state", state: name };
   history.replaceState(null, "", "#/state?n=" + encodeURIComponent(name));
   const rows = S.by.get(name) || [];
   const M = (k) => S.metrics.find((m) => m.key === k);
@@ -1674,6 +1689,7 @@ async function showStateProfile(q) {
 
   document.getElementById("app").replaceChildren(
     el("div", { class: "home-h" }, el("h1", null, name), el("div", { class: "f inline" }, "Switch state", sel)),
+    el("div", { class: "crumbs" }, el("a", { href: "#/states?focus=" + encodeURIComponent(name) }, "← State data"), el("a", { href: "#/rankings?s=" + encodeURIComponent(name) + "&a=" + encodeURIComponent(name) }, "State rankings →")),
     el("p", { class: "lede" }, "Economy, jobs, prices and human development for " + name + ", with its rank among states and recent developments."),
     tiles,
     el("div", { class: "grid" }, el("div", { class: "stack" }, growthCard, structCard, hdCard), side));
@@ -1911,7 +1927,9 @@ async function start() {
   }
   document.getElementById("stamp").textContent = "Refreshed " + new Date(G.news.updated).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
   window.addEventListener("hashchange", () => {
-    if (!V || readHash().page !== V.page) route();
+    const h = readHash();
+    // Profiles and rankings are one page each, so a new state or setting needs a redraw.
+    if (!V || h.page !== V.page || (V.page === "state" && h.q.get("n") !== V.state)) route();
     else if (V.page === "dashboard" && peekWanted()) peekShow();  // ?mitron added without a reload
     if (houstonWanted()) location.replace("houston.html");
   });

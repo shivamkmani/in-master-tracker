@@ -1,4 +1,4 @@
-# India Master Tracker
+# India Dashboard
 
 A static site that brings together Indian macro, state and sector data with a daily list of developments. Data comes only from government bodies and trade associations.
 
