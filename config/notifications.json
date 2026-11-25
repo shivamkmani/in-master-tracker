@@ -1,0 +1,26 @@
+{
+ "_comment": "Ministry pages listing notifications, rules, policies and orders as PDFs. 'type' is used when the title doesn't say; 'sectors' are always applied (keywords add more); 'pages' > 1 also reads ?page=1.. on Drupal sites. Ministries on the shared DigiFootprint platform (Power, MNRE, MeitY, Commerce, DPIIT, Labour, Textiles) refuse automated readers, so they aren't listed.",
+ "sources": [
+  {"ministry": "Commerce & Industry (DGFT)", "label": "DGFT notifications", "url": "https://www.dgft.gov.in/CP/?opt=notification", "type": "Gazette notification", "sectors": [ "macro" ]},
+  {"ministry": "Commerce & Industry (DGFT)", "label": "DGFT public notices", "url": "https://www.dgft.gov.in/CP/?opt=public-notice", "type": "Public / trade notice", "sectors": [ "macro" ]},
+  {"ministry": "Commerce & Industry (DGFT)", "label": "DGFT trade notices", "url": "https://www.dgft.gov.in/CP/?opt=trade-notice", "type": "Public / trade notice", "sectors": [ "macro" ]},
+  {"ministry": "Finance (Financial Services)", "label": "DFS gazette notifications", "url": "https://financialservices.gov.in/gazettes-notification", "type": "Gazette notification", "sectors": [ "finance" ], "pages": 3},
+  {"ministry": "Finance (Financial Services)", "label": "DFS acts and policies", "url": "https://financialservices.gov.in/acts-and-policies", "type": "Act / rules", "sectors": [ "finance" ]},
+  {"ministry": "Finance (Financial Services)", "label": "DFS orders and notices", "url": "https://financialservices.gov.in/orders-and-notices", "type": "Order / circular", "sectors": [ "finance" ], "pages": 3},
+  {"ministry": "Chemicals & Fertilizers (Chemicals)", "label": "Chemicals notifications", "url": "https://chemicals.gov.in/notifications", "type": "Gazette notification", "sectors": [ "chemicals" ]},
+  {"ministry": "Chemicals & Fertilizers (Chemicals)", "label": "Chemicals other notifications", "url": "https://chemicals.gov.in/other-notifications", "type": "Order / circular", "sectors": [ "chemicals" ]},
+  {"ministry": "Chemicals & Fertilizers (Chemicals)", "label": "Chemicals quality control orders", "url": "https://chemicals.gov.in/chemicals-bis-standard", "type": "Quality control order", "sectors": [ "chemicals" ]},
+  {"ministry": "Chemicals & Fertilizers (Chemicals)", "label": "Petrochemicals quality control orders", "url": "https://chemicals.gov.in/petrochemicals-bis-standard", "type": "Quality control order", "sectors": [ "chemicals" ]},
+  {"ministry": "Ports, Shipping & Waterways", "label": "Shipping notifications", "url": "https://shipmin.gov.in/en/act-and-rules/Notification", "type": "Gazette notification", "sectors": [ "logistics" ]},
+  {"ministry": "Ports, Shipping & Waterways", "label": "Shipping rules", "url": "https://shipmin.gov.in/en/act-and-rules/rules", "type": "Act / rules", "sectors": [ "logistics" ]},
+  {"ministry": "Ports, Shipping & Waterways", "label": "Shipping policy", "url": "https://shipmin.gov.in/en/orders/policy", "type": "Policy / guidelines", "sectors": [ "logistics" ]},
+  {"ministry": "Ports, Shipping & Waterways", "label": "Shipping circulars", "url": "https://shipmin.gov.in/en/orders/circulars", "type": "Order / circular", "sectors": [ "logistics" ]},
+  {"ministry": "Ports, Shipping & Waterways", "label": "Shipping office orders", "url": "https://shipmin.gov.in/en/orders/officeorders", "type": "Order / circular", "sectors": [ "logistics" ]},
+  {"ministry": "Petroleum & Natural Gas", "label": "MoPNG acts and rules", "url": "https://mopng.gov.in/en/exp-and-prod/acts-rules", "type": "Act / rules", "sectors": [ "energy" ]},
+  {"ministry": "Petroleum & Natural Gas", "label": "MoPNG other notifications", "url": "https://mopng.gov.in/en/exp-and-prod/other-notifications", "type": "Gazette notification", "sectors": [ "energy" ]},
+  {"ministry": "Heavy Industries", "label": "Heavy Industries notifications", "url": "https://heavyindustries.gov.in/en/notifications", "type": "Gazette notification", "sectors": [ "auto" ], "pages": 3}
+ ],
+ "_types": "Gazette notification, Act / rules, Policy / guidelines, Quality control order, Draft / consultation, Order / circular, Public / trade notice",
+ "minor_patterns": "appoint|nominat|vacanc|recruit|deputation|transfer|posting|promoted|promotion (?:order|to the (?:post|grade))|empanel|inquiry officer|office order|har ghar|campaign|swachh|hindi|pakhwada|holiday|\\bleave\\b|tender|stationary|registration form|personal details|\\brti\\b|grievance|nodal officer|young professional|advertisement|engagement of|consultant|cadre|seniority|retire|on (?:the )?board|board of directors|directory of|annual report|citizen.?s charter|vigilance|reconstitut|training|workshop|webinar|celebrat|yoga|sports|felicitat|invitation for|invites? proposals|service(?:s)? affected|non-availability|helpdesk|server|downtime|portal (?:will|is)|office memorandum regarding",
+ "major_patterns": "amend|\\brules?\\b|polic(?:y|ies)|scheme|\\bacts?\\b|quality control|\\bqco\\b|tariff|duty|import|export|\\bprice|pricing|guideline|framework|regulation|notified|under section|ordinance|exemption|prohibit|restrict|\\btrq\\b|incentive|subsidy|standard|suspen|abeyance|delist|clarification|extension|withdraw|\\bsion|handbook|appendix|ban\\b|allocation|certification"
+}

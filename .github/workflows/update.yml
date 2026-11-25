@@ -42,6 +42,11 @@ jobs:
           python pipeline/fetch_news.py
           python pipeline/backfill_news.py 1
           python pipeline/retag_news.py
+      - name: Fetch ministry notifications
+        if: github.event_name != 'push' && inputs.sdg != true
+        # A ministry site being down must not block the rest of the refresh.
+        continue-on-error: true
+        run: python pipeline/fetch_notifications.py
       - name: Fetch data
         if: github.event_name != 'push' && inputs.sdg != true
         run: |

@@ -626,16 +626,26 @@ function sortBy(col) {
 
 /* ---------- developments ---------- */
 const isOutlet = (r) => r.type === "News outlet";
+const isNote = (r) => r.type === "Notification";
+/* Major ministry notifications join each page's Developments as official items. */
+function noteDevs() {
+  if (!G.notes) return [];
+  if (!G.noteDevs) G.noteDevs = G.notes.items.filter((r) => r.maj && r.dated).map((r) => ({
+    title: r.t, url: r.u, date: r.d, publisher: r.m, type: "Notification", sectors: r.s, scope: "National", states: [], snippet: r.ty, kind: r.ty }));
+  return G.noteDevs;
+}
 function newsItems() {
   const n = V.news, sector = PAGES[V.page].news;
   const t = n.q.toLowerCase();
   const cutoff = n.days ? new Date(Date.now() - n.days * 864e5).toISOString().slice(0, 10) : "";
-  return G.news.items.filter((r) => {
+  const all = noteDevs().length ? G.news.items.concat(noteDevs()).sort((a, b) => a.date < b.date ? 1 : a.date > b.date ? -1 : 0) : G.news.items;
+  return all.filter((r) => {
     if (sector && ![].concat(sector).some((x) => r.sectors.includes(x))) return false;
     if (n.scope !== "All" && r.scope !== n.scope) return false;
     if (n.scope === "State" && G.focus && !r.states.includes(G.focus)) return false;
     if (n.src === "Official" && isOutlet(r)) return false;
     if (n.src === "News" && !isOutlet(r)) return false;
+    if (n.src === "Notes" && !isNote(r)) return false;
     if (cutoff && r.date < cutoff) return false;
     return !t || (r.title + " " + r.publisher + " " + r.snippet).toLowerCase().includes(t);
   });
@@ -647,7 +657,7 @@ function renderNews() {
   const scopes = el("div", { class: "seg-btns" }, ["All", "International", "National", "State"].map((sc) =>
     el("button", { type: "button", class: n.scope === sc ? "on" : "", onclick: () => { n.scope = sc; renderNews(); } }, sc)));
   const srcSel = el("select", { "aria-label": "Sources", onchange: (e) => { n.src = e.target.value; renderNews(); } },
-    [["All", "Official and news"], ["Official", "Official only"], ["News", "News outlets only"]].map(([v, t]) => el("option", { value: v, selected: v === n.src }, t)));
+    [["All", "Official and news"], ["Official", "Official only"], ["Notes", "Ministry notifications"], ["News", "News outlets only"]].map(([v, t]) => el("option", { value: v, selected: v === n.src }, t)));
   const search = el("input", { type: "search", placeholder: "Search developments", value: n.q, "aria-label": "Search developments", oninput: (e) => { n.q = e.target.value; drawList(); } });
   const days = el("select", { "aria-label": "Time window", onchange: (e) => { n.days = +e.target.value; renderNews(); } },
     [[7, "Last 7 days"], [30, "Last 30 days"], [90, "Last 90 days"], [0, "All dates"]].map(([v, t]) => el("option", { value: v, selected: v === n.days }, t)));
@@ -662,7 +672,7 @@ function renderNews() {
     for (const r of rows.slice(0, 200)) {
       const place = r.states.length ? " · " + r.states.slice(0, 3).join(", ") : "";
       list.append(el("li", null, el("a", { href: r.url, target: "_blank", rel: "noopener" }, tidy(r.title)),
-        el("small", null, dateLabel(r.date) + " · " + r.publisher + place)));
+        el("small", null, dateLabel(r.date) + " · " + (r.kind ? r.kind + " · " : "") + r.publisher + place)));
     }
   }
   host.append(el("div", { class: "card-h" }, el("h2", null, "Developments"), count),
@@ -803,7 +813,7 @@ function allStates() {
 async function showData(page, q) {
   const app = document.getElementById("app");
   const P = PAGES[page];
-  const rows = await loadPage(page);
+  const [rows] = await Promise.all([loadPage(page), loadNotes()]);
   if (q.get("focus") !== null) G.focus = q.get("focus");
   const freqs = uniq(rows.map((r) => r.f));
   V = { page, rows, preset: null, sort: null, dirty: false, hidden: new Set(), sel: { freq: freqs[0], span: 12, ds: [], geo: [], seg: [], ind: [] }, news: { scope: "All", src: "All", q: "", days: 30 } };
@@ -855,7 +865,94 @@ function showSources() {
     el("p", { class: "lede" }, "Every number comes from a government body. Developments come from government bodies, regulators, trade associations and international bodies, plus headlines from news outlets, which link to the outlet's own page. Last data refresh: " + new Date(m.updated).toLocaleString("en-GB") + "."),
     el("section", { class: "card" }, el("div", { class: "card-h" }, el("h2", null, "Datasets")), el("div", { class: "tablebox" }, data)),
     el("p", null, " "),
-    el("section", { class: "card" }, el("div", { class: "card-h" }, el("h2", null, "News feeds")), el("div", { class: "tablebox" }, feeds)));
+    el("section", { class: "card" }, el("div", { class: "card-h" }, el("h2", null, "News feeds")), el("div", { class: "tablebox" }, feeds)),
+    G.notes ? el("p", null, " ") : null,
+    G.notes ? el("section", { class: "card" }, el("div", { class: "card-h" }, el("h2", null, "Ministry notification pages")),
+      el("div", { class: "tablebox" }, el("table", { class: "src-table" }, el("thead", null, el("tr", null, ["Page", "Ministry", "Status", "Items read"].map((t) => el("th", null, t)))),
+        el("tbody", null, Object.entries(G.notes.status).map(([k, s]) => el("tr", null, el("td", null, el("a", { href: s.url, target: "_blank", rel: "noopener" }, k)), el("td", null, s.ministry),
+          el("td", null, s.ok ? el("span", { class: "ok" }, "Read") : el("span", { class: "fail", title: s.error || "" }, "Failed, keeping earlier items")), el("td", { class: "n" }, s.items ?? "–"))))))) : null);
+}
+
+/* ---------- ministry notifications: every item, filterable, linked to the PDF ---------- */
+async function loadNotes() {
+  if (!G.notes) G.notes = await getJSON("notifications").catch(() => null);
+  return G.notes;
+}
+const NOTE_TYPES = ["Gazette notification", "Act / rules", "Policy / guidelines", "Quality control order", "Draft / consultation", "Order / circular", "Public / trade notice"];
+function showNotifications(q) {
+  const app = document.getElementById("app");
+  V = { page: "notifications" };
+  if (!G.notes) { app.replaceChildren(el("h1", null, "Notifications"), el("p", { class: "empty" }, "Notifications haven't been collected yet. They arrive with the next daily update.")); return; }
+  const items = G.notes.items;
+  const ministries = uniq(items.map((r) => r.m)).sort();
+  const types = NOTE_TYPES.filter((t) => items.some((r) => r.ty === t));
+  const N = { q: q.get("q") || "", imp: q.get("imp") || "major", m: new Set((q.get("m") || "").split("|").filter(Boolean)),
+    ty: new Set((q.get("ty") || "").split("|").filter(Boolean)), sec: q.get("sec") || "", days: +(q.get("days") ?? 0), shown: 100 };
+  const save = () => {
+    const p = new URLSearchParams();
+    if (N.q) p.set("q", N.q);
+    if (N.imp !== "major") p.set("imp", N.imp);
+    if (N.m.size) p.set("m", [...N.m].join("|"));
+    if (N.ty.size) p.set("ty", [...N.ty].join("|"));
+    if (N.sec) p.set("sec", N.sec);
+    if (N.days) p.set("days", N.days);
+    history.replaceState(null, "", "#/notifications" + (p.toString() ? "?" + p : ""));
+  };
+  const filtered = () => {
+    const words = N.q.toLowerCase().split(/\s+/).filter(Boolean);
+    const cutoff = N.days ? new Date(Date.now() - N.days * 864e5).toISOString().slice(0, 10) : "";
+    return items.filter((r) => (N.imp === "all" || (N.imp === "major") === r.maj)
+      && (!N.m.size || N.m.has(r.m)) && (!N.ty.size || N.ty.has(r.ty)) && (!N.sec || r.s.includes(N.sec))
+      && (!cutoff || (r.dated && r.d >= cutoff))
+      && (!words.length || words.every((w) => (r.t + " " + r.no + " " + r.m + " " + r.ty).toLowerCase().includes(w))));
+  };
+  const head = el("div", { class: "filters" });
+  const list = el("ul", { class: "notes" });
+  const count = el("span", { class: "muted" });
+  const moreBox = el("div", { class: "notes-more" });
+  const search = el("input", { type: "search", placeholder: "Search titles, e.g. import policy, QCO, sugar", value: N.q, "aria-label": "Search notification titles",
+    oninput: (e) => { N.q = e.target.value; N.shown = 100; save(); drawList(); } });
+  const sectors = SECTOR_KEYS.concat(["macro"]).filter((k) => items.some((r) => r.s.includes(k)));
+  function drawFilters() {
+    head.replaceChildren(
+      el("div", { class: "f grow" }, "Search", search),
+      el("div", { class: "f" }, "Show", el("div", { class: "seg-btns" }, [["major", "Major policy"], ["minor", "Minor / administrative"], ["all", "All"]].map(([k, t]) =>
+        el("button", { type: "button", class: N.imp === k ? "on" : "", onclick: () => { N.imp = k; N.shown = 100; save(); drawFilters(); drawList(); } }, t)))),
+      checkMenu("Ministry", ministries.map((m) => ({ id: m, label: m })), (id) => N.m.has(id), (id, on) => { on ? N.m.add(id) : N.m.delete(id); },
+        { summary: (n) => n ? n + " selected" : "All ministries", onClear: () => N.m.clear(), clearLabel: "All ministries", redraw: () => { N.shown = 100; save(); drawFilters(); drawList(); } }),
+      checkMenu("Type", types.map((t) => ({ id: t, label: t })), (id) => N.ty.has(id), (id, on) => { on ? N.ty.add(id) : N.ty.delete(id); },
+        { summary: (n) => n ? n + " selected" : "All types", onClear: () => N.ty.clear(), clearLabel: "All types", redraw: () => { N.shown = 100; save(); drawFilters(); drawList(); } }),
+      el("div", { class: "f" }, "Sector", el("select", { "aria-label": "Sector", onchange: (e) => { N.sec = e.target.value; N.shown = 100; save(); drawList(); } },
+        el("option", { value: "" }, "All sectors"), sectors.map((k) => el("option", { value: k, selected: k === N.sec }, PAGES[k].label)))),
+      el("div", { class: "f" }, "Dates", el("select", { "aria-label": "Time window", onchange: (e) => { N.days = +e.target.value; N.shown = 100; save(); drawList(); } },
+        [[30, "Last 30 days"], [90, "Last 90 days"], [365, "Last 12 months"], [0, "All dates"]].map(([v, t]) => el("option", { value: v, selected: v === N.days }, t)))));
+  }
+  function drawList() {
+    const rows = filtered();
+    count.textContent = rows.length.toLocaleString("en-IN") + (rows.length === 1 ? " notification" : " notifications");
+    list.replaceChildren();
+    if (!rows.length) list.append(el("li", { class: "muted" }, "Nothing matches these filters. Try All dates or All, or clear the ministry and type filters."));
+    for (const r of rows.slice(0, N.shown)) {
+      list.append(el("li", null,
+        el("div", { class: "note-meta" }, el("span", null, r.dated ? dateLabel(r.d) : r.d ? "Listed " + dateLabel(r.d) : "Undated"), el("span", null, r.m)),
+        el("a", { href: r.u, target: "_blank", rel: "noopener" }, tidy(r.t)),
+        el("div", { class: "note-tags" }, el("span", { class: "tag" }, r.ty), r.maj ? el("span", { class: "tag maj" }, "Major policy") : null,
+          r.no ? el("span", { class: "tag plain" }, "No. " + r.no) : null)));
+    }
+    moreBox.replaceChildren(rows.length > N.shown ? el("button", { type: "button", onclick: () => { N.shown += 200; drawList(); } }, "Show more (" + (rows.length - N.shown).toLocaleString("en-IN") + " left)") : "");
+  }
+  const csvCell = (v) => /[",\n]/.test(v) ? '"' + String(v).replace(/"/g, '""') + '"' : v;
+  const actions = el("div", { class: "actions" },
+    el("button", { type: "button", onclick: (e) => copy(filtered().map((r) => [r.d || "", r.m, r.ty, r.t, r.u].join("\t")).join("\n"), e.target) }, "Copy list"),
+    el("button", { type: "button", onclick: () => download("india-dashboard-notifications.csv", "Date,Ministry,Type,Major policy,Number,Title,PDF\n" +
+      filtered().map((r) => [r.d || "", r.m, r.ty, r.maj ? "Yes" : "No", r.no, r.t, r.u].map(csvCell).join(",")).join("\n")) }, "Download CSV"));
+  drawFilters();
+  app.replaceChildren(
+    el("h1", null, "Notifications"),
+    el("p", { class: "lede" }, "Gazette notifications, rules, policies, quality control orders, orders and trade notices, read daily from each ministry's own website and linked to the official PDF. Every item is kept; ‘Major policy’ hides appointments, vacancies, office orders and other routine items."),
+    el("section", { class: "card" }, head, el("div", { class: "card-h" }, count, actions), list, moreBox),
+    el("p", { class: "muted small-note" }, "Covers " + ministries.join(", ") + ". Ministries on the government's shared DigiFootprint website platform (Power, MNRE, MeitY, Commerce, DPIIT, Labour, Textiles) don't allow automated reading, so they aren't included yet."));
+  drawList();
 }
 
 /* ---------- daily updates: hand-picked articles, one list per day ---------- */
@@ -1943,7 +2040,7 @@ document.getElementById("nav").addEventListener("scroll", () => { if (Date.now()
 async function route() {
   peekStop();
   const { page, q } = readHash();
-  const name = PAGES[page] || ["sources", "daily", "dashboard", "editor", "hd", "rankings", "state"].includes(page) ? page : "dashboard";
+  const name = PAGES[page] || ["sources", "daily", "dashboard", "editor", "hd", "rankings", "state", "notifications"].includes(page) ? page : "dashboard";
   closeSectors();
   document.querySelectorAll("nav a, .sec-menu a").forEach((a) => {
     if (a.dataset.p === name || (a.dataset.p === "states" && (name === "state" || name === "rankings"))) a.setAttribute("aria-current", "page");
@@ -1954,7 +2051,8 @@ async function route() {
   const cur = SECTOR_KEYS.includes(name) ? sb : document.querySelector('#nav a[aria-current="page"]');
   if (cur) { const bar = document.getElementById("nav"); bar.scrollLeft = Math.max(0, cur.offsetLeft - (bar.clientWidth - cur.offsetWidth) / 2); }
   try {
-    if (name === "sources") showSources();
+    if (name === "sources") { await loadNotes(); showSources(); }
+    else if (name === "notifications") { await loadNotes(); showNotifications(q); }
     else if (name === "daily") { await loadPicks(); showDaily(q); }
     else if (name === "editor") { await loadPicks(); showEditor(); }
     else if (name === "hd") await showHd(q);
@@ -1979,7 +2077,7 @@ async function start() {
   if (houstonWanted()) { location.replace("houston.html"); return; }
   const nav = document.getElementById("nav");
   const link = (k, label) => { const a = el("a", { href: "#/" + k }, label); a.dataset.p = k; return a; };
-  nav.append(link("daily", "Daily updates"), link("macro", PAGES.macro.label),
+  nav.append(link("daily", "Daily updates"), link("notifications", "Notifications"), link("macro", PAGES.macro.label),
     link("states", PAGES.states.label), link("hd", "Human development"), link("surveys", "Surveys"), sectorsButton(), link("sources", "Sources"));
   try {
     [G.meta, G.news] = await Promise.all([getJSON("meta"), getJSON("news")]);
