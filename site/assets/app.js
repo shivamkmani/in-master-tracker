@@ -1977,15 +1977,35 @@ async function storyCard() {
     card.replaceChildren(
       el("div", { class: "story-text" },
         el("div", { class: "story-kick" }, el("span", null, "Chart of the day · " + s.kicker), el("span", { class: "story-nav" },
-          el("button", { type: "button", "aria-label": "Previous chart", onclick: () => { k = (k - 1 + stories.length) % stories.length; draw(); } }, "‹"),
+          el("button", { type: "button", "aria-label": "Previous chart", onclick: () => { k = (k - 1 + stories.length) % stories.length; draw(); restart(); } }, "‹"),
           el("span", { class: "muted" }, (k + 1) + " / " + stories.length),
-          el("button", { type: "button", "aria-label": "Next chart", onclick: () => { k = (k + 1) % stories.length; draw(); } }, "›"))),
+          el("button", { type: "button", "aria-label": "Next chart", onclick: () => { k = (k + 1) % stories.length; draw(); restart(); } }, "›"),
+          el("button", { type: "button", class: "story-pause", "aria-label": stopped ? "Play charts" : "Pause charts", title: stopped ? "Play" : "Pause",
+            onclick: () => { stopped = !stopped; draw(); restart(); } }, stopped ? "▶" : "❚❚"))),
         el("h2", null, s.title), el("p", null, s.text),
         el("p", { class: "cite" }, "Source: " + s.src + "."),
         el("div", { class: "actions" }, el("a", { class: "more", href, onclick: () => { if (s.preset) G.pendingPreset = s.preset; } }, "Explore the data →"), c ? chartButtonsFor(c, s.title, "Source: " + s.src + ".") : null)),
       el("div", { class: "story-chart" }, c));
   };
+  // Flip to the next chart every 10 seconds. Pauses while the pointer or keyboard
+  // focus is on the card, while the tab is hidden, or when paused by the button.
+  let timer = null, hold = false, stopped = false;
+  function restart() {
+    clearInterval(timer);
+    if (stopped || stories.length < 2) return;
+    timer = setInterval(() => {
+      if (!card.isConnected) { clearInterval(timer); return; }
+      if (hold || document.hidden) return;
+      k = (k + 1) % stories.length;
+      draw();
+    }, 10000);
+  }
+  card.addEventListener("mouseenter", () => { hold = true; });
+  card.addEventListener("mouseleave", () => { hold = false; });
+  card.addEventListener("focusin", () => { hold = true; });
+  card.addEventListener("focusout", (e) => { if (!card.contains(e.relatedTarget)) hold = false; });
   draw();
+  restart();
   return card;
 }
 
