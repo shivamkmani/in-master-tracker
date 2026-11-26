@@ -1987,7 +1987,7 @@ async function storyCard() {
         el("div", { class: "actions" }, el("a", { class: "more", href, onclick: () => { if (s.preset) G.pendingPreset = s.preset; } }, "Explore the data →"), c ? chartButtonsFor(c, s.title, "Source: " + s.src + ".") : null)),
       el("div", { class: "story-chart" }, c));
   };
-  // Flip to the next chart every 10 seconds. Pauses while the pointer or keyboard
+  // Flip to the next chart every 8 seconds. Pauses while the pointer or keyboard
   // focus is on the card, while the tab is hidden, or when paused by the button.
   let timer = null, hold = false, stopped = false;
   function restart() {
@@ -1998,7 +1998,7 @@ async function storyCard() {
       if (hold || document.hidden) return;
       k = (k + 1) % stories.length;
       draw();
-    }, 10000);
+    }, 8000);
   }
   card.addEventListener("mouseenter", () => { hold = true; });
   card.addEventListener("mouseleave", () => { hold = false; });
