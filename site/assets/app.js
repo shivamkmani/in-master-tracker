@@ -751,8 +751,101 @@ function tiles(rows, linked, defs, page) {
 /* ---------- home: a snapshot of everything, with links into each page ---------- */
 const MACRO_NEWS = ["macro", "finance"];
 
+/* ---------- Markets strip: live US prices, Indian closing values ---------- */
+// NSE and BSE don't license live index prices for free embeds, so India shows the
+// latest official close (Nifty from NSE Indices via the daily update, Sensex via
+// TradingView's end-of-day quote) and only the US quotes are live.
+const TV_US = [
+  { proName: "FOREXCOM:SPXUSD", title: "S&P 500" },
+  { proName: "FOREXCOM:NSXUSD", title: "Nasdaq 100" },
+  { proName: "FOREXCOM:DJI", title: "Dow Jones" },
+];
+const prefersDark = () => matchMedia("(prefers-color-scheme: dark)").matches;
+function tvTickers(symbols, label) {
+  const box = el("div", { class: "tradingview-widget-container tv-box", "aria-label": label },
+    el("div", { class: "tradingview-widget-container__widget" }));
+  const sc = document.createElement("script");
+  sc.src = "https://s3.tradingview.com/external-embedding/embed-widget-tickers.js";
+  sc.async = true;
+  sc.textContent = JSON.stringify({ symbols, colorTheme: prefersDark() ? "dark" : "light", isTransparent: true, showSymbolLogo: false, locale: "en" });
+  box.append(sc);
+  // If the widget can't load (blocked network, ad blocker), say so instead of leaving a gap.
+  setTimeout(() => {
+    if (box.isConnected && !box.querySelector("iframe")) box.replaceChildren(el("p", { class: "muted tv-fail" }, "Live prices couldn't load here. ",
+      el("a", { href: "https://www.tradingview.com/markets/indices/", target: "_blank", rel: "noopener" }, "See them on TradingView")));
+  }, 10000);
+  return box;
+}
+/* Wall-clock parts in a time zone, and that zone's UTC offset in minutes. */
+function zoned(tz, d = new Date()) {
+  const p = Object.fromEntries(new Intl.DateTimeFormat("en-US", { timeZone: tz, hourCycle: "h23", weekday: "short", year: "numeric", month: "numeric", day: "numeric", hour: "numeric", minute: "numeric" })
+    .formatToParts(d).map((x) => [x.type, x.value]));
+  const wd = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(p.weekday);
+  const off = Math.round((Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute) - Math.floor(d.getTime() / 6e4) * 6e4) / 6e4);
+  return { wd, min: +p.hour * 60 + +p.minute, off };
+}
+const istClock = (m) => { m = ((m % 1440) + 1440) % 1440; const h = Math.floor(m / 60), mm = m % 60; return (h % 12 || 12) + ":" + String(mm).padStart(2, "0") + (h < 12 ? " am" : " pm") + " IST"; };
+const DAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+/* One exchange's state: open now, and when it next opens or closes (in IST). */
+function session(tz, openMin, closeMin) {
+  const z = zoned(tz), ist = zoned("Asia/Kolkata");
+  const weekday = (d) => d >= 1 && d <= 5;
+  const open = weekday(z.wd) && z.min >= openMin && z.min < closeMin;
+  // Minutes from now until the next close (if open) or open, then read that moment on an IST clock.
+  let delta;
+  if (open) delta = closeMin - z.min;
+  else {
+    let days = weekday(z.wd) && z.min < openMin ? 0 : 1;
+    while (!weekday((z.wd + days) % 7)) days++;
+    delta = days * 1440 + openMin - z.min;
+  }
+  const at = ist.min + delta, dayAhead = Math.floor(at / 1440);
+  const when = dayAhead === 0 ? "" : dayAhead === 1 ? "tomorrow " : DAY[(ist.wd + dayAhead) % 7] + " ";
+  return { open, text: (open ? "Open · closes " : "Closed · opens ") + when + istClock(at) };
+}
+/* US index quotes from brokers trade Sunday 6 pm to Friday 5 pm New York time, with a daily hour off. */
+function usQuotesMoving() {
+  const z = zoned("America/New_York");
+  if (z.wd === 6 || (z.wd === 5 && z.min >= 1020) || (z.wd === 0 && z.min < 1080)) return false;
+  return !(z.min >= 1020 && z.min < 1080);
+}
+function marketsCard() {
+  const M = G.markets, n = M && M.indices && M.indices["Nifty 50"];
+  const card = el("section", { class: "card mkts", "aria-label": "Markets" });
+  const inStat = el("span", { class: "mkt-stat" }), usStat = el("span", { class: "mkt-stat" }), pill = el("span", { class: "live-pill" });
+  const tick = () => {
+    if (!card.isConnected && card.dataset.drawn) return clearInterval(timer);
+    card.dataset.drawn = 1;
+    const ind = session("Asia/Kolkata", 555, 930), us = session("America/New_York", 570, 960), moving = usQuotesMoving();
+    inStat.replaceChildren(el("i", { class: "dot" + (ind.open ? " on" : "") }), "NSE/BSE: " + ind.text);
+    inStat.title = "Exchange holidays aren't accounted for.";
+    usStat.replaceChildren(el("i", { class: "dot" + (us.open ? " on" : "") }), "NYSE/Nasdaq: " + us.text);
+    pill.className = "live-pill" + (us.open ? " live" : moving ? " after" : " shut");
+    pill.replaceChildren(el("i"), us.open ? "Live" : moving ? "Live · outside US hours" : "Markets closed");
+    pill.title = moving ? "Prices update as trades happen" : "Quotes resume Sunday 6 pm New York time";
+  };
+  const timer = setInterval(tick, 30000);
+  const up = n && n.change >= 0;
+  const nifty = n ? el("div", { class: "mkt-tile", title: "Open " + fmt(n.open) + " · High " + fmt(n.high) + " · Low " + fmt(n.low) + (n.pe ? " · P/E " + n.pe + " · P/B " + n.pb : "") },
+    el("span", { class: "mkt-name" }, "Nifty 50"),
+    el("b", null, n.close.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })),
+    el("span", { class: up ? "chg up" : "chg down" }, (up ? "▲ +" : "▼ ") + n.change.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " (" + (up ? "+" : "") + n.pct.toFixed(2) + "%)"),
+    el("small", null, "Close, " + dateLabel(n.date))) : el("div", { class: "mkt-tile" }, el("span", { class: "mkt-name" }, "Nifty 50"), el("small", null, "Closing value arrives with the next daily update."));
+  card.append(
+    el("div", { class: "card-h" }, el("h2", null, "Markets"), el("div", { class: "mkt-stats" }, inStat, usStat)),
+    el("div", { class: "mkt-groups" },
+      el("div", { class: "mkt-group india" }, el("div", { class: "mkt-label" }, "India", el("span", { class: "close-pill" }, "Closing values")),
+        el("div", { class: "mkt-row" }, nifty, tvTickers([{ proName: "BSE:SENSEX", title: "Sensex" }], "Sensex closing value"))),
+      el("div", { class: "mkt-group us" }, el("div", { class: "mkt-label" }, "United States", pill),
+        el("div", { class: "mkt-row us-row" }, TV_US.map((sym) => tvTickers([sym], sym.title + " live price"))))),
+    el("p", { class: "mkt-note" }, "US prices are live broker quotes (FOREX.com) that track each index and trade almost round the clock; they can differ from the official index by a few points. Indian exchanges don't license live prices for free display, so India shows the latest close: Nifty 50 from NSE Indices, Sensex from BSE. ",
+      el("a", { href: "https://www.tradingview.com/", target: "_blank", rel: "noopener" }, "Market data by TradingView"), "."));
+  tick();
+  return card;
+}
+
 async function showHome() {
-  const macro = await loadPage("macro");
+  const [macro] = await Promise.all([loadPage("macro"), G.markets ? null : getJSON("markets").then((m) => { G.markets = m; }).catch(() => {})]);
   V = { page: "dashboard" };
   const picks = (G.picks && G.picks.items) || [];
   const today = localISO(new Date());
@@ -796,6 +889,7 @@ async function showHome() {
     el("div", { class: "home-h" },
       el("h1", null, "Home"),
       el("p", { class: "muted" }, longDate(today) + ". Official data refreshed " + updated + ".")),
+    marketsCard(),
     // Three columns: macro figures down the left, daily updates in the middle,
     // chart of the day and macro developments on the right.
     el("div", { class: "dash" },
